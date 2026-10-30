@@ -28,16 +28,18 @@
 | Base locale | **SQLite** | aucune installation nécessaire ; voir les limites dans [database.md](database.md) |
 | Pilote MariaDB | `PyMySQL` | pur Python ; `mysqlclient` ne peut pas être compilé sur o2switch (gcc interdit, constaté en phase 1b) |
 | Mode SQL MariaDB | `utf8mb4` + `STRICT_TRANS_TABLES` | refuse les données invalides au lieu de les tronquer |
-| Authentification | SimpleJWT + `token_blacklist` | révocation des jetons de renouvellement à la déconnexion |
+| Authentification | SimpleJWT + `token_blacklist` ; `access` 15 min, `refresh` 7 jours à usage unique (rotation) | révocation à la déconnexion, au changement de mot de passe et à la suppression du compte |
+| Utilisateur | modèle personnalisé `users.User`, e-mail comme identifiant, clé UUID | exigé dès la première migration |
+| Limitation des tentatives | `login` 5/min, `register` 10/h par IP ; `NUM_PROXIES=0` | l'en-tête `X-Forwarded-For`, falsifiable, est ignoré |
 | Documentation API | `drf-spectacular` (OpenAPI 3, Swagger UI, ReDoc) | schéma généré depuis le code |
 | Filtres | `django-filter` | filtres déclaratifs et documentés dans OpenAPI |
 | CORS | `django-cors-headers` | liste blanche explicite |
 | Configuration | `django-environ` | lecture des variables d'environnement et de `DATABASE_URL` |
 | Fichiers statiques | WhiteNoise | fonctionne avec Passenger sans configuration Apache |
-| Limitation des tentatives | throttling DRF avec **cache en base de données** | un cache mémoire n'est pas partagé entre les processus Passenger |
+| Cache | **cache en base de données** (`lifetrack_cache`) | un cache mémoire n'est pas partagé entre les processus Passenger |
 | Montants | `DecimalField(max_digits=15, decimal_places=2)` + code devise ISO 4217 | précision exacte ; le XOF est affiché sans décimales |
 | Identifiants | UUID pour les objets exposés par l'API | évite l'énumération des identifiants |
-| Dates | `USE_TZ=True`, stockage UTC, fuseau par défaut `Africa/Abidjan` (UTC+0), modifiable par utilisateur | respect des fuseaux horaires |
+| Dates | `USE_TZ=True`, stockage UTC, fuseau par défaut `Africa/Lome` (UTC+0, sans accent : nom IANA), modifiable par utilisateur | respect des fuseaux horaires |
 | Jetons côté mobile | `expo-secure-store` | stockage chiffré par le système |
 | Bibliothèque de composants et de graphiques | **choisies en phase 5** | après vérification de la compatibilité avec le SDK Expo en vigueur |
 

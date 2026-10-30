@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     # LifeTrack
     "apps.core",
     "apps.users",
+    "apps.finance",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -85,7 +86,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalisation : stockage en UTC, fuseau par défaut UTC+0 (Afrique de l'Ouest).
 LANGUAGE_CODE = "fr"
-TIME_ZONE = "Africa/Abidjan"
+TIME_ZONE = "Africa/Lome"
 USE_I18N = True
 USE_TZ = True
 

@@ -2,7 +2,7 @@
 
 Application mobile personnelle de gestion financière et de suivi sportif.
 
-> **État : phase 1 (initialisation du backend).** Seul l'endpoint de santé et la documentation OpenAPI existent ; aucune fonctionnalité métier n'est encore développée. Voir [docs/development-plan.md](docs/development-plan.md).
+> **État : phase 2 (authentification).** Le backend gère les comptes utilisateurs et l'authentification JWT. Les modules financier et sportif ne sont pas encore développés. Voir [docs/development-plan.md](docs/development-plan.md).
 
 ## Organisation du dépôt (monorepo)
 
@@ -59,6 +59,8 @@ Sans uv : `py -3.12 -m venv .venv`, puis `.venv\Scripts\pip install -r requireme
 
 ```bash
 python manage.py migrate
+python manage.py createcachetable      # cache utilisé par la limitation des tentatives
+python manage.py createsuperuser       # facultatif : compte pour /admin/ (identifiant = e-mail)
 python manage.py runserver
 ```
 

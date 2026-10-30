@@ -40,6 +40,50 @@
 
 En production, l'accès à `/api/docs/` et `/api/redoc/` pourra être désactivé ou réservé aux administrateurs. Cette décision sera prise en phase 14.
 
+## 3 bis. Authentification (phase 2)
+
+Jetons JWT (SimpleJWT) :
+
+| Jeton | Durée de vie | Utilisation |
+|---|---|---|
+| `access` | 15 minutes | en-tête `Authorization: Bearer <access>` |
+| `refresh` | 7 jours | obtenir une nouvelle paire ; **à usage unique** (rotation, l'ancien est révoqué) |
+
+| Méthode | URL | Auth | Corps | Réponse |
+|---|---|---|---|---|
+| POST | `/api/v1/auth/register/` | non | `email`, `password`, `first_name?`, `last_name?` | 201 + profil |
+| POST | `/api/v1/auth/login/` | non | `email`, `password` | 200 `{access, refresh}` ; 401 si identifiants invalides |
+| POST | `/api/v1/auth/token/refresh/` | non | `refresh` | 200 `{access, refresh}` (nouvelle paire) ; 401 si révoqué ou expiré |
+| POST | `/api/v1/auth/logout/` | oui | `refresh` | 204 ; 400 si jeton invalide, déjà révoqué ou appartenant à un autre utilisateur |
+| GET | `/api/v1/auth/me/` | oui | — | 200 + profil |
+| PATCH | `/api/v1/auth/me/` | oui | `first_name`, `last_name`, `preferred_currency`, `timezone` | 200 + profil |
+| POST | `/api/v1/auth/me/password/` | oui | `current_password`, `new_password` | 204 ; **révoque toutes les sessions** |
+| POST | `/api/v1/auth/me/delete/` | oui | `password` | 204 ; suppression définitive du compte et de ses données |
+
+Profil renvoyé :
+
+```json
+{
+  "id": "6f1c…-uuid",
+  "email": "ama@example.com",
+  "first_name": "Ama",
+  "last_name": "Mensah",
+  "preferred_currency": "XOF",
+  "timezone": "Africa/Lome",
+  "date_joined": "2026-10-30T16:20:00Z"
+}
+```
+
+Règles :
+
+- L'e-mail est normalisé en minuscules. La connexion est insensible à la casse.
+- L'e-mail n'est pas modifiable via `PATCH /me/`. `PUT` n'est pas accepté.
+- `preferred_currency` : code ISO 4217 en majuscules (`XOF`, `EUR`…). `timezone` : nom IANA (`Africa/Lome`, `Europe/Paris`…).
+- Les mots de passe sont soumis aux validateurs de Django (longueur minimale, mots de passe courants, uniquement numériques, trop proches de l'e-mail ou du nom) et limités à 128 caractères.
+- Un e-mail inconnu et un mauvais mot de passe renvoient exactement la même erreur 401.
+- **Limitation des tentatives :** 5 requêtes par minute et par adresse IP sur `login/`, et 10 par heure sur `register/`. Au-delà, la réponse est **429**. Toutes les tentatives sont comptées, réussies ou non.
+- Un jeton d'un compte désactivé ou supprimé est refusé (401).
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.
@@ -59,14 +103,29 @@ Ouvrir ensuite :
 - ReDoc : http://127.0.0.1:8000/api/redoc/
 - Schéma brut : http://127.0.0.1:8000/api/schema/
 
-### 4.2 S'authentifier dans Swagger (à partir de la phase 2)
+### 4.2 S'authentifier dans Swagger
 
 1. Appeler `POST /api/v1/auth/register/` (*Try it out*) pour créer un compte de test.
 2. Appeler `POST /api/v1/auth/login/` et copier la valeur `access` de la réponse.
-3. Cliquer sur **Authorize** en haut de la page, coller le jeton (sans le préfixe `Bearer`) et valider.
-4. Tous les appels suivants sont alors authentifiés. Quand le jeton expire, refaire l'étape 2 ou utiliser `POST /api/v1/auth/token/refresh/`.
+3. Cliquer sur **Authorize** en haut de la page, coller le jeton (sans le préfixe `Bearer`) dans **jwtAuth** et valider.
+4. Tous les appels suivants sont alors authentifiés. Le jeton `access` expire au bout de 15 minutes : refaire l'étape 2, ou appeler `POST /api/v1/auth/token/refresh/` avec le `refresh`.
 
-Les URLs exactes seront confirmées en phase 2.
+Attention : après 5 connexions en une minute, `login/` répond 429. Il suffit d'attendre une minute.
+
+### 4.2 bis Parcours de vérification de l'authentification
+
+| # | Action | Résultat attendu |
+|---|---|---|
+| 1 | `register/` avec un mot de passe faible (`12345678`) | 400, erreur sur `password` |
+| 2 | `register/` avec un mot de passe solide | 201, sans champ `password` dans la réponse |
+| 3 | `login/` avec l'e-mail en MAJUSCULES | 200, `access` et `refresh` |
+| 4 | **Authorize**, puis `GET me/` | 200, ton profil |
+| 5 | `PATCH me/` avec `{"timezone": "Mars/Olympus"}` | 400 |
+| 6 | `token/refresh/` avec le `refresh`, puis encore avec **le même** `refresh` | 200, puis 401 |
+| 7 | `logout/` avec le nouveau `refresh` | 204 ; un `token/refresh/` avec ce jeton renvoie 401 |
+| 8 | **Logout** dans la fenêtre Authorize, puis `GET me/` | 401 |
+| 9 | `me/password/` avec un mauvais `current_password` | 400 |
+| 10 | `me/delete/` avec le bon mot de passe | 204 ; `GET me/` renvoie ensuite 401 |
 
 ### 4.3 Scénario de vérification de l'isolation des données
 

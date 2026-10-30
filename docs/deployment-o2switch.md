@@ -1,6 +1,6 @@
 # Déploiement du backend sur o2switch
 
-> **État : premier déploiement réussi le 30 octobre 2026 (phase 1b).** Ce déploiement couvrait l'endpoint de santé et la documentation OpenAPI, avec une base MariaDB vide (aucune migration). Les étapes marquées *(non testé)* n'ont pas encore été exécutées sur le serveur. La procédure de retour arrière sera testée en phase 14.
+> **État : phase 2 déployée et vérifiée le 30 octobre 2026** (authentification, première migration, compte administrateur). Le premier déploiement (phase 1b) couvrait l'endpoint de santé et la documentation OpenAPI. Les étapes marquées *(non testé)* n'ont pas encore été exécutées sur le serveur. La procédure de retour arrière sera testée en phase 14.
 
 Environnement de production :
 
@@ -114,7 +114,11 @@ DATABASE_URL=mysql://<utilisateur_bdd>:<mot_de_passe_bdd>@localhost:3306/<nom_bd
 CSRF_TRUSTED_ORIGINS=https://api.lifetrack.hyacinthe-dalmeida.com
 ```
 
-La liste complète des variables est dans `backend/.env.example`. `DJANGO_BEHIND_PROXY` doit rester absent : Passenger transmet correctement le HTTPS à Django (constaté, aucune boucle de redirection).
+La liste complète des variables est dans `backend/.env.example`.
+
+Deux variables doivent rester absentes :
+- `DJANGO_BEHIND_PROXY` : Passenger transmet correctement le HTTPS à Django (constaté, aucune boucle de redirection).
+- `DJANGO_NUM_PROXIES` : Django reçoit la véritable adresse IP du client dans `REMOTE_ADDR`. Constaté en phase 2 : après 6 connexions ratées depuis un téléphone en 4G, un PC sur une autre connexion pouvait toujours se connecter (limitation bien appliquée par IP).
 
 ### 3.7 Contrôles, fichiers statiques et démarrage
 
@@ -154,7 +158,22 @@ touch tmp/restart.txt
 
 Puis refaire les vérifications du §4.
 
-Les migrations sont toujours lancées **explicitement**, jamais automatiquement au démarrage. À partir de la phase 2, il faudra aussi lancer une fois `python manage.py createcachetable`, pour le cache en base utilisé par la limitation des tentatives de connexion.
+Les migrations sont toujours lancées **explicitement**, jamais automatiquement au démarrage. `python manage.py createcachetable` est à lancer une fois, lors du premier déploiement de la phase 2. La commande est sans effet si la table existe déjà.
+
+### Premier déploiement de la phase 2 (première migration)
+
+La base était vide jusqu'ici. Ce déploiement crée toutes les tables, dont le modèle utilisateur personnalisé :
+
+```bash
+git pull
+pip install -r requirements.txt
+python manage.py migrate --noinput
+python manage.py createcachetable
+python manage.py createsuperuser        # compte administrateur (identifiant = e-mail)
+python manage.py collectstatic --noinput
+python manage.py check --deploy
+touch tmp/restart.txt
+```
 
 ## 6. Diagnostic
 

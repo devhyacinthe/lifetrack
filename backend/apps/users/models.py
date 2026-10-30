@@ -3,16 +3,13 @@ import zoneinfo
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone as django_timezone
 
-DEFAULT_CURRENCY = "XOF"
-DEFAULT_TIMEZONE = "Africa/Abidjan"
+from apps.core.validators import currency_validator
 
-currency_validator = RegexValidator(
-    regex=r"^[A-Z]{3}$", message="La devise doit être un code ISO 4217 (ex. XOF, EUR)."
-)
+DEFAULT_CURRENCY = "XOF"
+DEFAULT_TIMEZONE = "Africa/Lome"
 
 
 def validate_timezone(value):

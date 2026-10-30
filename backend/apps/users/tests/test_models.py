@@ -21,7 +21,7 @@ def test_user_defaults():
     user = UserFactory()
 
     assert user.preferred_currency == "XOF"
-    assert user.timezone == "Africa/Abidjan"
+    assert user.timezone == "Africa/Lome"
     assert user.is_active is True
     assert user.is_staff is False
     assert str(user) == user.email
@@ -78,3 +78,12 @@ def test_natural_key_lookup_is_case_insensitive():
     user = UserFactory(email="efua@example.com")
 
     assert User.objects.get_by_natural_key("EFUA@Example.com") == user
+
+
+def test_default_timezone_is_a_valid_iana_name():
+    # Régression : « Africa/Lomé » (avec accent) n'existe pas ; le nom IANA est « Africa/Lome ».
+    import zoneinfo
+
+    from apps.users.models import DEFAULT_TIMEZONE
+
+    assert DEFAULT_TIMEZONE in zoneinfo.available_timezones()

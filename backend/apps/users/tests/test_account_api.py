@@ -178,3 +178,16 @@ def test_delete_account_requires_authentication(api_client):
     response = api_client.post(DELETE_ACCOUNT, {"password": DEFAULT_PASSWORD}, format="json")
 
     assert response.status_code == 401
+
+
+def test_delete_account_with_financial_history(auth_client, user):
+    # Régression : la suppression ne doit pas être bloquée par les transactions et transferts.
+    from apps.finance.tests.factories import TransactionFactory, TransferFactory
+
+    TransactionFactory(user=user)
+    TransferFactory(user=user)
+
+    response = auth_client.post(DELETE_ACCOUNT, {"password": DEFAULT_PASSWORD}, format="json")
+
+    assert response.status_code == 204
+    assert not User.objects.filter(pk=user.pk).exists()
