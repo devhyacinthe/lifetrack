@@ -23,7 +23,7 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 13 | Tests d'intégration et de bout en bout | à faire |
 | 14 | Sécurité, sauvegardes et préparation au déploiement | à faire |
 
-La phase 1b permet de valider tôt Python 3.12, Passenger, psycopg et PostgreSQL sur o2switch, plutôt que de découvrir des incompatibilités en phase 14.
+La phase 1b permet de valider tôt Python 3.12, Passenger, le pilote MariaDB et MariaDB sur o2switch, plutôt que de découvrir des incompatibilités en phase 14.
 
 ## Plan de validation
 
@@ -35,10 +35,10 @@ Chaque phase backend comporte **deux niveaux de validation** :
 | Phase | Tests automatisés | Vérification Swagger / manuelle |
 |---|---|---|
 | 1 | `pytest` vert ; `ruff check` ; `manage.py check` ; `check --deploy` avec les settings de prod sans erreur bloquante | `/api/v1/health/` répond 200 ; `/api/docs/` s'affiche ; `spectacular --validate` sans avertissement |
-| 1b | — | santé et Swagger accessibles en HTTPS sur o2switch ; migrations appliquées sur PostgreSQL |
+| 1b | — | santé et Swagger accessibles en HTTPS sur o2switch ; pilote MariaDB installé ; migrations appliquées sur MariaDB |
 | 2 | inscription, connexion, refresh, déconnexion avec révocation, profil, mot de passe, suppression, throttling | parcours complet d'authentification avec le bouton **Authorize** ; un jeton révoqué est refusé |
 | 3 | modèles, contraintes, migrations appliquées sans erreur, catégories initiales | admin Django : création d'objets cohérents |
-| 4 | CRUD, filtres, tri, pagination, serializers, isolation entre utilisateurs, cas limites ; calculs financiers aussi exécutés sur PostgreSQL | scénario d'isolation A/B (404 attendu) ; pagination et filtres testés depuis Swagger |
+| 4 | CRUD, filtres, tri, pagination, serializers, isolation entre utilisateurs, cas limites ; calculs financiers aussi exécutés sur MariaDB | scénario d'isolation A/B (404 attendu) ; pagination et filtres testés depuis Swagger |
 | 5 | `npx expo-doctor` ; `npx tsc --noEmit` ; `expo lint` ; Jest | navigation à 5 onglets sur l'appareil ou l'émulateur ; thèmes clair et sombre |
 | 6 | tests du client API et du renouvellement des jetons (pas de boucle) | connexion réelle à l'API locale ; types TypeScript comparés au schéma OpenAPI |
 | 7 | validation des formulaires, états de chargement, d'erreur et vides | création, modification et suppression d'une transaction, vérifiées ensuite dans Swagger |

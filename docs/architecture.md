@@ -9,7 +9,7 @@
 └──────────────────────┘                         └──────────────┬──────────────┘
                                                                 │ ORM Django
                                                   ┌─────────────▼─────────────┐
-                                                  │ PostgreSQL (production)   │
+                                                  │ MariaDB 11.4 (production) │
                                                   │ SQLite (développement)    │
                                                   └───────────────────────────┘
 ```
@@ -24,9 +24,10 @@
 |---|---|---|
 | Python | **3.12** (3.12.16 disponible sur o2switch) | version récente, compatible Django 5.2, même version en local et en production |
 | Django | **5.2 LTS** | support étendu jusqu'en avril 2028, compatible Python 3.10 à 3.14 |
-| Base de production | **PostgreSQL** | choix validé |
+| Base de production | **MariaDB 11.4** (version serveur vérifiée sur o2switch) | supportée par Django 5.2 ; le PostgreSQL d'o2switch (9.6) n'est plus maintenu ni supporté |
 | Base locale | **SQLite** | aucune installation nécessaire ; voir les limites dans [database.md](database.md) |
-| Pilote PostgreSQL | `psycopg[binary]` (psycopg 3) | fournit libpq, aucune compilation sur l'hébergement mutualisé |
+| Pilote MariaDB | `mysqlclient`, avec `PyMySQL` en repli | `mysqlclient` est le pilote officiel mais se compile sur le serveur : à valider en phase 1b |
+| Mode SQL MariaDB | `utf8mb4` + `STRICT_TRANS_TABLES` | refuse les données invalides au lieu de les tronquer |
 | Authentification | SimpleJWT + `token_blacklist` | révocation des jetons de renouvellement à la déconnexion |
 | Documentation API | `drf-spectacular` (OpenAPI 3, Swagger UI, ReDoc) | schéma généré depuis le code |
 | Filtres | `django-filter` | filtres déclaratifs et documentés dans OpenAPI |
@@ -58,7 +59,7 @@ lifetrack/
 │   │   │   ├── base.py            # commun
 │   │   │   ├── dev.py             # SQLite, DEBUG
 │   │   │   ├── test.py            # tests (rapides, hachage simplifié)
-│   │   │   └── prod.py            # PostgreSQL, sécurité HTTPS, DEBUG=False
+│   │   │   └── prod.py            # MariaDB, sécurité HTTPS, DEBUG=False
 │   │   ├── urls.py                # /api/v1/, /api/schema/, /api/docs/
 │   │   └── wsgi.py
 │   └── apps/                      # chaque app est créée à sa phase

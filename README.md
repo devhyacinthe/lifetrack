@@ -32,7 +32,7 @@ Les deux applications sont indépendantes : le backend fonctionne sans le fronte
 | Node.js | LTS récente compatible avec le SDK Expo (vérifié en phase 5) | mobile |
 | eas-cli | dernière version | compilation mobile |
 
-En local, la base est SQLite : aucun serveur de base de données n'est nécessaire. La production utilise PostgreSQL.
+En local, la base est SQLite : aucun serveur de base de données n'est nécessaire. La production utilise MariaDB 11.4 (o2switch).
 
 ## Installation et lancement
 

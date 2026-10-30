@@ -2,7 +2,7 @@
 
 ## 1. Ton rôle
 
-Tu es un développeur full-stack senior spécialisé en Python, Django REST Framework, PostgreSQL, React Native et Expo.
+Tu es un développeur full-stack senior spécialisé en Python, Django REST Framework, MariaDB/MySQL, React Native et Expo.
 
 Tu dois m'aider à concevoir et développer une application mobile personnelle de gestion financière et de suivi sportif.
 
@@ -42,7 +42,7 @@ Le projet doit être organisé dans un dépôt Git contenant deux applications i
 - Python.
 - Django.
 - Django REST Framework.
-- PostgreSQL en production, SQLite en développement local.
+- MariaDB en production, SQLite en développement local.
 - SimpleJWT pour l'authentification.
 - Documentation OpenAPI.
 - Tests automatisés avec pytest et pytest-django.
@@ -76,9 +76,9 @@ N'installe pas arbitrairement des versions incompatibles.
 
 ### Base de données
 
-PostgreSQL est utilisé en production (o2switch).
+MariaDB 11.4 est utilisé en production (o2switch, version serveur vérifiée).
 
-SQLite est utilisé en développement local et pour les tests, tant que cela ne masque pas de différences importantes de comportement. Les tests des calculs financiers et ceux qui dépendent de fonctionnalités spécifiques à PostgreSQL doivent aussi être exécutés avec PostgreSQL avant la mise en production (voir docs/database.md).
+SQLite est utilisé en développement local et pour les tests, tant que cela ne masque pas de différences importantes de comportement. Les tests des calculs financiers et ceux qui dépendent de fonctionnalités spécifiques à MariaDB doivent aussi être exécutés avec MariaDB avant la mise en production (voir docs/database.md).
 
 Les migrations doivent être versionnées.
 
@@ -485,7 +485,9 @@ Le dépôt Git sera organisé en monorepo :
 
 ### Base de données
 
-PostgreSQL est la base de données cible en production, avec le pilote `psycopg[binary]`.
+MariaDB 11.4 (vérifiée sur le serveur o2switch) est la base de données cible en production. PostgreSQL a été écarté : le client installé sur o2switch est en version 9.6, qui n'est plus maintenue et n'est pas supportée par Django 5.2.
+
+Pilote : `mysqlclient` (pilote officiel de Django), à valider lors du premier déploiement ; `PyMySQL` en solution de repli si la compilation échoue sur le serveur.
 
 ### Versions retenues (phase 0)
 

@@ -4,9 +4,9 @@
 
 ## 1. Prérequis
 
-- Un compte o2switch avec accès au cPanel et à SSH *(à vérifier : accès SSH activé)*.
+- Un compte o2switch avec accès au cPanel. Les commandes de ce document s'exécutent dans l'outil **Terminal** du cPanel (disponible, confirmé). SSH n'est pas nécessaire ; il reste une option pour travailler depuis un terminal local.
 - Python **3.12** dans *Setup Python App* (3.12.16 relevé dans le cPanel).
-- Une base **PostgreSQL** créée depuis le cPanel *(à vérifier : version proposée ; Django 5.2 exige PostgreSQL 14 ou plus récent)*.
+- Une base **MariaDB** créée dans *Bases de données MySQL®* du cPanel, avec un utilisateur dédié qui a tous les privilèges sur cette base. Version serveur relevée : **11.4.13-MariaDB** (Django 5.2 exige MariaDB 10.5 ou plus récent).
 - Un sous-domaine dédié à l'API, par exemple `api.<domaine>`, avec un certificat SSL (AutoSSL / Let's Encrypt).
 - Le dépôt Git accessible depuis le serveur (clonage HTTPS ou SSH, ou outil *Git Version Control* du cPanel).
 
@@ -41,13 +41,15 @@ Dans *Setup Python App* → *Create Application* :
 
 ## 5. Installation des dépendances
 
-Se connecter en SSH et activer l'environnement virtuel. Le cPanel affiche la commande exacte en haut de la page de l'application *(à vérifier)* :
+Ouvrir le Terminal du cPanel et activer l'environnement virtuel. Le cPanel affiche la commande exacte en haut de la page de l'application *(à vérifier)* :
 
 ```bash
 source /home/<utilisateur>/virtualenv/lifetrack/backend/3.12/bin/activate
 cd /home/<utilisateur>/lifetrack/backend
 pip install -r requirements.txt
 ```
+
+Si l'installation de `mysqlclient` échoue (compilation impossible sur le serveur), on bascule sur `PyMySQL` ; la marche à suivre sera documentée ici en phase 1b.
 
 ## 6. Variables d'environnement
 
@@ -58,7 +60,7 @@ Elles peuvent être définies dans *Setup Python App* (section *Environment vari
 | `DJANGO_SETTINGS_MODULE` | `config.settings.prod` |
 | `DJANGO_SECRET_KEY` | *(générer une clé aléatoire unique)* |
 | `DJANGO_ALLOWED_HOSTS` | `api.exemple.com` |
-| `DATABASE_URL` | `postgres://utilisateur:motdepasse@localhost:5432/nom_base` |
+| `DATABASE_URL` | `mysql://utilisateur:motdepasse@localhost:3306/nom_base` |
 | `CORS_ALLOWED_ORIGINS` | *(vide pour une application mobile native)* |
 | `CSRF_TRUSTED_ORIGINS` | `https://api.exemple.com` |
 
@@ -87,7 +89,7 @@ WhiteNoise sert `staticfiles/` directement depuis Django, sans configuration Apa
 ## 10. Redémarrage de l'application
 
 - Bouton *Restart* dans *Setup Python App*,
-- ou en SSH : `touch tmp/restart.txt` dans la racine de l'application *(à vérifier)*.
+- ou dans le Terminal : `touch tmp/restart.txt` dans la racine de l'application *(à vérifier)*.
 
 ## 11. Diagnostic
 
@@ -98,7 +100,7 @@ WhiteNoise sert `staticfiles/` directement depuis Django, sans configuration Apa
 
 ## 12. Retour à une version précédente
 
-1. Sauvegarder la base avant chaque déploiement (`pg_dump`, ou l'outil de sauvegarde du cPanel).
+1. Sauvegarder la base avant chaque déploiement (`mariadb-dump --single-transaction`, ou l'outil de sauvegarde du cPanel).
 2. `git checkout <tag-précédent>` dans `lifetrack/`.
 3. Si des migrations ont été appliquées : `python manage.py migrate <app> <migration_précédente>`, ou restaurer la sauvegarde.
 4. `pip install -r requirements.txt`, `collectstatic`, puis redémarrer.
