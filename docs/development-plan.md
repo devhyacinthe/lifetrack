@@ -7,8 +7,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | Phase | Périmètre | Statut |
 |---|---|---|
 | 0 | Audit et préparation du dépôt | ✅ terminée |
-| 1 | Initialisation Django, configuration, tests, endpoint de santé, Swagger | ✅ terminée (en attente de validation) |
-| 1b | Premier déploiement minimal sur o2switch (santé + Swagger) | à faire |
+| 1 | Initialisation Django, configuration, tests, endpoint de santé, Swagger | ✅ terminée |
+| 1b | Premier déploiement minimal sur o2switch (santé + Swagger) | ✅ terminée (en attente de validation) |
 | 2 | Modèle utilisateur et authentification | à faire |
 | 3 | Modèles financiers et migrations | à faire |
 | 4 | API financière et tests | à faire |
@@ -35,7 +35,7 @@ Chaque phase backend comporte **deux niveaux de validation** :
 | Phase | Tests automatisés | Vérification Swagger / manuelle |
 |---|---|---|
 | 1 | `pytest` vert ; `ruff check` ; `manage.py check` ; `check --deploy` avec les settings de prod sans erreur bloquante | `/api/v1/health/` répond 200 ; `/api/docs/` s'affiche ; `spectacular --validate` sans avertissement |
-| 1b | — | santé et Swagger accessibles en HTTPS sur o2switch ; pilote MariaDB installé ; migrations appliquées sur MariaDB |
+| 1b | — | santé et Swagger accessibles en HTTPS sur o2switch ; pilote MariaDB installé ; connexion à MariaDB confirmée par `/api/v1/health/` (pas de migration, pour garder la base vide avant le modèle utilisateur personnalisé de la phase 2) |
 | 2 | inscription, connexion, refresh, déconnexion avec révocation, profil, mot de passe, suppression, throttling | parcours complet d'authentification avec le bouton **Authorize** ; un jeton révoqué est refusé |
 | 3 | modèles, contraintes, migrations appliquées sans erreur, catégories initiales | admin Django : création d'objets cohérents |
 | 4 | CRUD, filtres, tri, pagination, serializers, isolation entre utilisateurs, cas limites ; calculs financiers aussi exécutés sur MariaDB | scénario d'isolation A/B (404 attendu) ; pagination et filtres testés depuis Swagger |
