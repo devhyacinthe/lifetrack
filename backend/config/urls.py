@@ -8,6 +8,7 @@ from drf_spectacular.views import (
 
 api_v1_patterns = [
     path("", include("apps.core.urls")),
+    path("auth/", include("apps.users.urls")),
 ]
 
 urlpatterns = [

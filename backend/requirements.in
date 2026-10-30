@@ -4,8 +4,11 @@
 Django>=5.2,<5.3
 djangorestframework
 drf-spectacular
+djangorestframework-simplejwt
 django-environ
 django-cors-headers
 whitenoise
 # Pilote MariaDB en pur Python : mysqlclient ne peut pas être compilé sur o2switch (gcc interdit).
 PyMySQL
+# Base des fuseaux horaires embarquée : ne dépend pas de celle du serveur (validation des fuseaux).
+tzdata

@@ -5,6 +5,7 @@ Les valeurs propres à un environnement (secrets, base de données, hôtes autor
 sont lues depuis les variables d'environnement ou le fichier backend/.env.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -29,11 +30,15 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Tiers
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "corsheaders",
     # LifeTrack
     "apps.core",
+    "apps.users",
 ]
+
+AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -96,16 +101,45 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
+# Cache partagé entre les processus Passenger (utilisé par la limitation des tentatives).
+# La table est créée avec : python manage.py createcachetable
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "lifetrack_cache",
+    }
+}
+
 REST_FRAMEWORK = {
-    # L'authentification JWT sera ajoutée en phase 2.
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
     # Tout endpoint est privé par défaut ; les exceptions sont explicites (AllowAny).
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    # Limitation appliquée uniquement aux vues qui déclarent un throttle_scope.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",
+        "register": "10/hour",
+    },
+    # 0 : l'adresse du client est REMOTE_ADDR. L'en-tête X-Forwarded-For, falsifiable,
+    # est ignoré. À ajuster si un proxy est placé devant l'application.
+    "NUM_PROXIES": env.int("DJANGO_NUM_PROXIES", default=0),
     "DEFAULT_PAGINATION_CLASS": "apps.core.pagination.StandardPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    # Chaque renouvellement émet un nouveau jeton et révoque l'ancien.
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 SPECTACULAR_SETTINGS = {
