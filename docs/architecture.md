@@ -47,6 +47,7 @@
 | Navigation | Expo Router, onglets natifs (`expo-router/native-tabs`) | API officielle du SDK 58 ; Android limite la barre à 5 onglets |
 | Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) + `@expo/vector-icons` (icônes Material Community utilisées par Paper) | thèmes clair et sombre, composants accessibles |
 | Identité visuelle | vert émeraude de l'icône (`#14745C`), accent orangé, cartes arrondies (24 px), fonds teintés ; composants `Screen`, `SectionCard`, `IconBadge`, `AuthShell` | rendu cohérent entre les écrans, défini une seule fois dans `src/theme/` et `src/components/` |
+| Sélecteur de date | `@react-native-community/datetimepicker` (phase 7) | sélecteur natif recommandé par Expo, inclus dans Expo Go ; dialogue natif sur Android, compact sur iOS |
 | Graphiques | **react-native-gifted-charts** (installée en phase 11) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
 | Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | demande de l'utilisateur |
 | Installation des paquets | toujours `npx expo install <paquet>` | choisit les versions compatibles avec le SDK |
@@ -90,10 +91,13 @@ lifetrack/
         ├── app/                   # routes Expo Router (uniquement écrans et layouts)
         │   ├── _layout.tsx        # fournisseurs (Paper, thème de navigation) + pile racine
         │   ├── (tabs)/            # 5 onglets : index (Accueil), finances, sport, stats, profile
+        │   ├── (finance)/         # phase 7 : transactions/new, transactions/[id], categories
         │   └── (auth)/            # login, register
         ├── api/                   # phase 6 : client HTTP unique, endpoints, jetons
-        ├── features/              # phases 6+ : finance/, workouts/… (hooks TanStack Query)
-        ├── components/            # composants réutilisables (Screen, ComingSoon…)
+        ├── features/              # phases 6+ : profile/, finance/… (hooks TanStack Query, formulaires)
+        ├── components/            # composants réutilisables (Screen, SectionCard, EmptyState, DateField…)
+        ├── hooks/                 # hooks génériques (useDebouncedValue)
+        ├── utils/                 # fonctions pures (dates calendaires)
         ├── constants/             # constantes (définition des onglets…)
         ├── schemas/               # phase 6 : schémas Zod
         ├── theme/                 # thèmes clair et sombre (Paper + navigation)
@@ -116,6 +120,18 @@ Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fich
 | Données serveur | TanStack Query ; cache entièrement vidé à la déconnexion |
 | Formulaires | React Hook Form + Zod (`src/schemas/`) ; les erreurs du backend s'affichent sous les champs (`src/forms/api-errors.ts`) |
 | Erreurs | `ApiError` (réponse en échec, avec erreurs par champ) et `NetworkError` (serveur injoignable) |
+
+### Écrans financiers (phase 7)
+
+| Élément | Choix |
+|---|---|
+| Montants | chaînes décimales exactes de l'API jusqu'au formulaire (`normalizeAmountInput` : « 12 500 » ou « 12,50 » → `"12500"`, `"12.50"`) ; conversion en nombre **pour l'affichage uniquement** |
+| Dates | `YYYY-MM-DD` calculées dans le fuseau du téléphone (`src/utils/dates.ts`), jamais via `toISOString()` (UTC) |
+| Liste des transactions | `useInfiniteQuery` (20 par page), sections par jour quand le tri est par date ; filtres envoyés au backend (`search` temporisé à 400 ms, `type`, `category`, `date_after`/`date_before`, `ordering`) |
+| Cache | clés `['finance', …]` ; une écriture de transaction invalide les listes et les comptes (soldes) ; une écriture de catégorie invalide aussi les transactions (nom affiché) |
+| Historique | une catégorie désactivée ou un compte archivé restent proposés uniquement pour la transaction qui les utilise déjà, comme le backend l'autorise |
+| Suppression d'une catégorie utilisée | le 409 du backend est affiché et l'écran propose de la désactiver |
+| Comptes | lecture seule en phase 7 (le compte « Espèces » créé par défaut suffit) ; gestion complète en phase 8 |
 
 ### Structure type d'une application Django
 

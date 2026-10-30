@@ -16,7 +16,7 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 4 | API financière et tests | ✅ terminée : CI verte (SQLite + MariaDB 11.4) ; déploiement et conversion `utf8mb4` confirmés par l'utilisateur (sorties non transmises, à revérifier en phase 14 avec `convert_db_charset`) |
 | 5 | Initialisation Expo et navigation | ✅ validée par l'utilisateur ; TypeScript, ESLint et Prettier OK ; ⚠️ **tests Jest et `expo-doctor` pas encore exécutés** (reportés en fin de projet, phase 13, à la demande de l'utilisateur) |
 | 6 | Connexion du frontend à l'API | ✅ terminée (30/10/2026) : TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours d'authentification et nouveau design validés par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
-| 7 | Interfaces financières | à faire |
+| 7 | Interfaces financières | 🔄 développée : liste des transactions (recherche, filtres, tri, pagination), création, modification, suppression, gestion des catégories ; TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; tests Jest écrits, non exécutés (phase 13) ; essai sur téléphone à faire |
 | 8 | Budgets, comptes et objectifs financiers | à faire |
 | 9 | Module sportif backend | à faire |
 | 10 | Interfaces sportives | à faire |
