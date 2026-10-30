@@ -50,7 +50,9 @@ lifetrack/
 ├── backend/
 │   ├── manage.py
 │   ├── passenger_wsgi.py          # point d'entrée Passenger → config.wsgi.application
-│   ├── requirements.txt           # dépendances de production (versions figées)
+│   ├── conftest.py                # fixtures pytest communes
+│   ├── requirements.in            # dépendances directes de production
+│   ├── requirements.txt           # versions figées (générées pour Linux / Python 3.12)
 │   ├── requirements-dev.txt       # -r requirements.txt + outils de test et de qualité
 │   ├── pyproject.toml             # configuration ruff et pytest
 │   ├── .env.example

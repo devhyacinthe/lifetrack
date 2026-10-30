@@ -37,7 +37,11 @@ Dans *Setup Python App* → *Create Application* :
 
 ## 4. Configuration WSGI
 
-`backend/passenger_wsgi.py` (créé en phase 1) importe `config.wsgi.application` et force `DJANGO_SETTINGS_MODULE=config.settings.prod`.
+`backend/passenger_wsgi.py` ajoute `backend/` au chemin Python, définit `DJANGO_SETTINGS_MODULE=config.settings.prod` (sauf si la variable est déjà définie) et expose `application`.
+
+*(À vérifier)* : à la création de l'application, Setup Python App peut générer son propre `passenger_wsgi.py`. Si c'est le cas, il faut le remplacer par celui du dépôt (`git checkout passenger_wsgi.py`).
+
+*(À vérifier)* : il faut confirmer que Passenger transmet correctement le schéma HTTPS à Django (`request.is_secure()`). Si ce n'est pas le cas (boucle de redirection avec `SECURE_SSL_REDIRECT`), définir `DJANGO_BEHIND_PROXY=True`.
 
 ## 5. Installation des dépendances
 

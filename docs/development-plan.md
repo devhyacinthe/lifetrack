@@ -6,8 +6,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 
 | Phase | Périmètre | Statut |
 |---|---|---|
-| 0 | Audit et préparation du dépôt | ✅ terminée (en attente de validation) |
-| 1 | Initialisation Django, configuration, tests, endpoint de santé, Swagger | à faire |
+| 0 | Audit et préparation du dépôt | ✅ terminée |
+| 1 | Initialisation Django, configuration, tests, endpoint de santé, Swagger | ✅ terminée (en attente de validation) |
 | 1b | Premier déploiement minimal sur o2switch (santé + Swagger) | à faire |
 | 2 | Modèle utilisateur et authentification | à faire |
 | 3 | Modèles financiers et migrations | à faire |

@@ -1,0 +1,10 @@
+# Dépendances directes de production.
+# Ne pas modifier requirements.txt à la main : le régénérer avec
+#   uv pip compile requirements.in -o requirements.txt --python-version 3.12 --python-platform linux
+Django>=5.2,<5.3
+djangorestframework
+drf-spectacular
+django-environ
+django-cors-headers
+whitenoise
+mysqlclient

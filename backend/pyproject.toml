@@ -1,0 +1,23 @@
+# Configuration des outils de qualité et de test.
+# Les dépendances sont gérées dans requirements.in / requirements.txt / requirements-dev.txt.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["**/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "W",
+    "F",   # pyflakes
+    "I",   # tri des imports
+    "B",   # bugbear
+    "UP",  # syntaxe Python moderne
+    "DJ",  # bonnes pratiques Django
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+addopts = "--strict-markers"

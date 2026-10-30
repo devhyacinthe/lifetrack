@@ -7,7 +7,7 @@
 | Environnement | Moteur | Configuration |
 |---|---|---|
 | Développement local | SQLite (`backend/db.sqlite3`, ignoré par Git) | par défaut dans `config.settings.dev` |
-| Tests automatisés | SQLite par défaut ; MariaDB si `DATABASE_URL` le désigne | `config.settings.test` |
+| Tests automatisés | SQLite en mémoire par défaut ; MariaDB si `TEST_DATABASE_URL` le désigne | `config.settings.test` |
 | Production (o2switch) | **MariaDB 11.4.13** (version serveur vérifiée) | `DATABASE_URL` fourni par variable d'environnement |
 
 **Pourquoi pas PostgreSQL :** o2switch propose PostgreSQL 9.6 (client vérifié), qui n'est plus maintenu depuis 2021 et n'est pas supporté par Django 5.2 (PostgreSQL 14 minimum). MariaDB 11.4 est une version LTS supportée par Django 5.2 (MariaDB 10.5 minimum).
@@ -28,7 +28,7 @@ Le développement sur SQLite et la production sur MariaDB peuvent se comporter d
 - **Concurrence** : SQLite verrouille la base entière ; `select_for_update()` n'y a pas d'effet. Les transferts entre comptes ne sont donc pas testés en conditions concurrentes en local.
 - **Comparaisons de texte** : la collation de MariaDB est par défaut insensible à la casse, contrairement à SQLite. Une contrainte d'unicité sur un nom de catégorie, par exemple, peut se comporter différemment.
 
-**Règle :** les tests des calculs financiers (soldes, budgets, transferts) doivent aussi être exécutés sur MariaDB avant la mise en production. Il suffit de lancer `pytest` avec un `DATABASE_URL` MariaDB, sur une base de test o2switch, une base locale ou une CI. La solution sera choisie avant la phase 4.
+**Règle :** les tests des calculs financiers (soldes, budgets, transferts) doivent aussi être exécutés sur MariaDB avant la mise en production. Il suffit de lancer `pytest` avec `TEST_DATABASE_URL` pointant vers une base MariaDB dédiée aux tests (jamais la base de production : pytest crée et détruit une base `test_…`), sur une base de test o2switch, une base locale ou une CI. La solution sera choisie avant la phase 4.
 
 ## 4. Conventions de modélisation
 
