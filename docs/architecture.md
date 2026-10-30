@@ -43,7 +43,12 @@
 | Identifiants | UUID pour les objets exposés par l'API | évite l'énumération des identifiants |
 | Dates | `USE_TZ=True`, stockage UTC, fuseau par défaut `Africa/Lome` (UTC+0, sans accent : nom IANA), modifiable par utilisateur | respect des fuseaux horaires |
 | Jetons côté mobile | `expo-secure-store` | stockage chiffré par le système |
-| Bibliothèque de composants et de graphiques | **choisies en phase 5** | après vérification de la compatibilité avec le SDK Expo en vigueur |
+| SDK mobile | **Expo SDK 58** (React Native 0.88.1, React 19.3), Node ≥ 22.13 | dernière version au 30/10/2026 ; compatible avec Expo Go |
+| Navigation | Expo Router, onglets natifs (`expo-router/native-tabs`) | API officielle du SDK 58 ; Android limite la barre à 5 onglets |
+| Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) | thèmes clair et sombre, composants accessibles, icônes intégrées |
+| Graphiques | **react-native-gifted-charts** (installée en phase 11) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
+| Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | demande de l'utilisateur |
+| Installation des paquets | toujours `npx expo install <paquet>` | choisit les versions compatibles avec le SDK |
 
 ## 3. Arborescence cible
 
@@ -75,16 +80,26 @@ lifetrack/
 │       ├── workouts/              # phase 9
 │       ├── body_metrics/          # phase 11
 │       └── dashboard/             # phase 12
-└── mobile/                        # généré en phase 5 avec create-expo-app
-    ├── app/                       # routes Expo Router : (auth)/, (tabs)/…
+└── mobile/                        # application « LifeTracker » (Expo SDK 58)
+    ├── app.json                   # nom, icônes, écran de démarrage
+    ├── assets/images/             # icônes générées par tools/make_icons.py
+    ├── tools/make_icons.py        # génération des icônes (Python + Pillow)
+    ├── __tests__/                 # tests Jest
     └── src/
-        ├── api/                   # client HTTP unique, endpoints, gestion des jetons
-        ├── features/              # finance/, workouts/, … (hooks TanStack Query, écrans)
-        ├── components/            # composants réutilisables
-        ├── schemas/               # schémas Zod
-        ├── theme/                 # thèmes clair et sombre
-        └── types/                 # types des réponses de l'API
+        ├── app/                   # routes Expo Router (uniquement écrans et layouts)
+        │   ├── _layout.tsx        # fournisseurs (Paper, thème de navigation) + pile racine
+        │   ├── (tabs)/            # 5 onglets : index (Accueil), finances, sport, stats, profile
+        │   └── (auth)/            # login, register
+        ├── api/                   # phase 6 : client HTTP unique, endpoints, jetons
+        ├── features/              # phases 6+ : finance/, workouts/… (hooks TanStack Query)
+        ├── components/            # composants réutilisables (Screen, ComingSoon…)
+        ├── constants/             # constantes (définition des onglets…)
+        ├── schemas/               # phase 6 : schémas Zod
+        ├── theme/                 # thèmes clair et sombre (Paper + navigation)
+        └── types/                 # phase 6 : types des réponses de l'API
 ```
+
+Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fichier de ce dossier en route.
 
 ### Structure type d'une application Django
 

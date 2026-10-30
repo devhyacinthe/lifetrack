@@ -118,9 +118,41 @@ Pour lancer les tests sur une base MariaDB locale ou de test (jamais la producti
 
 Les variables d'environnement sont décrites dans [backend/.env.example](backend/.env.example).
 
-## Mobile
+## Mobile : application « LifeTracker »
 
-Les commandes seront documentées en phase 5.
+Toutes les commandes s'exécutent depuis le dossier `mobile/`. Prérequis : Node.js ≥ 22.13, et l'application **Expo Go** sur le téléphone.
+
+### Installation (une seule fois)
+
+```bash
+cd mobile
+npm install
+```
+
+Pour ajouter une dépendance, utiliser **`npx expo install <paquet>`** plutôt que `npm install <paquet>` : Expo choisit alors la version compatible avec le SDK 58.
+
+### Lancer l'application sur le téléphone
+
+```bash
+npx expo start
+```
+
+Scanner ensuite le QR code affiché avec **Expo Go** (Android). Le téléphone et le PC doivent être sur le **même réseau Wi-Fi**. Si le téléphone ne se connecte pas (pare-feu, réseau d'entreprise), utiliser `npx expo start --tunnel`.
+
+### Tests et contrôles qualité
+
+```bash
+npm test                 # tests Jest
+npm run typecheck        # TypeScript (tsc --noEmit)
+npm run lint             # ESLint (expo lint)
+npm run format:check     # Prettier (npm run format pour corriger)
+npx expo-doctor          # cohérence des dépendances avec le SDK
+```
+
+### Icônes
+
+Les icônes (`assets/images/`) sont générées par `tools/make_icons.py` :
+`uv run --with pillow python tools/make_icons.py assets/images`
 
 ## Sécurité
 
