@@ -26,6 +26,8 @@
 | 401 | Jeton absent, invalide ou expiré | `{ "detail": "…", "code": "token_not_valid" }` |
 | 403 | Action interdite | `{ "detail": "…" }` |
 | 404 | Objet inexistant **ou appartenant à un autre utilisateur** | `{ "detail": "…" }` |
+| 405 | Méthode non autorisée (ex. `PUT` : utiliser `PATCH`) | `{ "detail": "…" }` |
+| 409 | Suppression d'un objet encore utilisé (compte, catégorie) | `{ "detail": "…" }` |
 | 429 | Trop de tentatives | `{ "detail": "…" }` |
 | 500 | Erreur serveur | message générique, sans détail interne |
 
@@ -84,6 +86,72 @@ Règles :
 - **Limitation des tentatives :** 5 requêtes par minute et par adresse IP sur `login/`, et 10 par heure sur `register/`. Au-delà, la réponse est **429**. Toutes les tentatives sont comptées, réussies ou non.
 - Un jeton d'un compte désactivé ou supprimé est refusé (401).
 
+## 3 ter. Finances (phase 4)
+
+Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utilisateur connecté** : l'objet d'un autre utilisateur renvoie 404, et son identifiant utilisé dans un corps de requête renvoie 400 `"Objet introuvable."`. Méthodes : `GET` (liste et détail), `POST`, `PATCH` et `DELETE` ; `PUT` n'est pas accepté.
+
+### Comptes : `/api/v1/finance/accounts/`
+
+```json
+{
+  "id": "uuid", "name": "Banque", "type": "bank", "currency": "XOF",
+  "initial_balance": "100000.00", "balance": "67500.00", "is_archived": false,
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- `type` : `cash`, `bank`, `mobile_money`, `savings`.
+- `balance` : lecture seule, calculé (solde initial + revenus − dépenses ± transferts).
+- `currency` : facultative à la création (devise préférée de l'utilisateur par défaut). **Non modifiable une fois que le compte a des opérations.**
+- Le nom est unique par utilisateur.
+- Filtres : `type`, `is_archived`, `currency`. Recherche : `search` (nom). Tri : `ordering=name|created_at`.
+- `DELETE` d'un compte qui a des opérations : **409**. Il faut l'archiver (`PATCH {"is_archived": true}`).
+
+### Catégories : `/api/v1/finance/categories/`
+
+```json
+{ "id": "uuid", "name": "Alimentation", "type": "expense", "is_active": true, "created_at": "…", "updated_at": "…" }
+```
+
+- Le nom est unique par utilisateur et par type. **Le `type` n'est pas modifiable** après la création.
+- Filtres : `type`, `is_active`. Recherche : `search`. Tri : `ordering=name|type|created_at`.
+- `DELETE` d'une catégorie utilisée : **409**. Il faut la désactiver (`PATCH {"is_active": false}`).
+
+### Transactions : `/api/v1/finance/transactions/`
+
+```json
+{
+  "id": "uuid", "type": "expense", "amount": "12500.00", "currency": "XOF",
+  "account": "uuid", "account_name": "Banque",
+  "category": "uuid", "category_name": "Alimentation",
+  "date": "2026-10-28", "description": "Marché", "payment_method": "mobile_money",
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Obligatoires : `type`, `amount`, `account`, `category`, `date`. Facultatifs : `description`, `payment_method` (`cash`, `card`, `mobile_money`, `bank_transfer`, `check`, `other`).
+- `amount` : chaîne décimale, au minimum `0.01`, au plus 2 décimales et 13 chiffres avant la virgule.
+- `currency`, `account_name`, `category_name` : lecture seule.
+- La catégorie doit être du même type que la transaction.
+- Un compte archivé ou une catégorie désactivée sont refusés pour une **nouvelle** opération. Les opérations existantes restent modifiables.
+- Filtres : `type`, `account`, `category`, `payment_method`, `date_after`, `date_before` (bornes incluses, `YYYY-MM-DD`), `amount_min`, `amount_max`.
+- Recherche : `search` (description). Tri : `ordering=date|-date|amount|-amount|created_at` (par défaut `-date`).
+
+### Transferts : `/api/v1/finance/transfers/`
+
+```json
+{
+  "id": "uuid", "from_account": "uuid", "from_account_name": "Banque",
+  "to_account": "uuid", "to_account_name": "Espèces",
+  "amount": "20000.00", "currency": "XOF", "date": "2026-10-29", "description": "",
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Comptes **distincts**, appartenant à l'utilisateur et **de même devise**.
+- Un transfert ne crée ni revenu ni dépense : il modifie seulement les soldes des deux comptes.
+- Filtres : `account` (compte débité **ou** crédité), `date_after`, `date_before`. Recherche : `search`. Tri : `ordering=date|amount|created_at`.
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.
@@ -134,6 +202,8 @@ Attention : après 5 connexions en une minute, `login/` répond 429. Il suffit d
 3. Cliquer sur **Authorize**, se déconnecter, puis s'authentifier avec le jeton de B.
 4. Appeler `GET`, `PATCH` et `DELETE` sur l'`id` de A : la réponse attendue est **404** à chaque fois.
 5. Lister les objets de B : l'objet de A ne doit pas apparaître.
+6. Avec B, créer une transaction en utilisant l'`id` du compte de A : la réponse attendue est **400** `"Objet introuvable."`.
+7. Avec A, supprimer un compte qui a des transactions : la réponse attendue est **409**.
 
 Ce scénario manuel complète les tests automatisés d'isolation ; il ne les remplace pas.
 

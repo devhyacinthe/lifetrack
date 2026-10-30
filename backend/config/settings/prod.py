@@ -8,7 +8,7 @@ si DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS ou DATABASE_URL sont absents.
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .base import env
+from .base import configure_mysql, env
 
 DEBUG = False
 
@@ -17,15 +17,7 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 if not SECRET_KEY or not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY et DJANGO_ALLOWED_HOSTS sont obligatoires.")
 
-DATABASES = {"default": env.db("DATABASE_URL")}
-if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
-    DATABASES["default"].setdefault("OPTIONS", {}).update(
-        {
-            "charset": "utf8mb4",
-            # Refuse les valeurs invalides au lieu de les tronquer silencieusement.
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-    )
+DATABASES = {"default": configure_mysql(env.db("DATABASE_URL"))}
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 
 STORAGES = {

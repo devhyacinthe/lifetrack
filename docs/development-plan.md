@@ -10,8 +10,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 1 | Initialisation Django, configuration, tests, endpoint de santé, Swagger | ✅ terminée |
 | 1b | Premier déploiement minimal sur o2switch (santé + Swagger) | ✅ terminée |
 | 2 | Modèle utilisateur et authentification | ✅ terminée (déployée et vérifiée sur o2switch) |
-| 3 | Modèles financiers et migrations | ⚠️ déployée ; erreur 500 sur `/admin/` en production, en cours d'analyse |
-| 4 | API financière et tests | à faire |
+| 3 | Modèles financiers et migrations | ✅ terminée (erreur 500 de l'admin corrigée ; tables MariaDB à convertir en `utf8mb4` au déploiement de la phase 4) |
+| 4 | API financière et tests | ✅ développée et testée en local (SQLite) ; tests MariaDB (CI) et déploiement en attente |
 | 5 | Initialisation Expo et navigation | à faire |
 | 6 | Connexion du frontend à l'API | à faire |
 | 7 | Interfaces financières | à faire |

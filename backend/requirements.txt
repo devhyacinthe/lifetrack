@@ -12,12 +12,15 @@ django==5.2.18
     # via
     #   -r requirements.in
     #   django-cors-headers
+    #   django-filter
     #   djangorestframework
     #   djangorestframework-simplejwt
     #   drf-spectacular
 django-cors-headers==4.9.0
     # via -r requirements.in
 django-environ==0.14.0
+    # via -r requirements.in
+django-filter==26.2
     # via -r requirements.in
 djangorestframework==3.18.3
     # via

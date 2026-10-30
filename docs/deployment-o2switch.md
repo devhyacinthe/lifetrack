@@ -187,6 +187,24 @@ python manage.py check --deploy
 touch tmp/restart.txt
 ```
 
+### Conversion de l'encodage en `utf8mb4` (une seule fois, déploiement de la phase 4)
+
+Les tables créées lors des phases 2 et 3 n'utilisaient pas l'encodage du projet : les commandes `manage.py` tournaient alors avec les paramètres de développement. La commande `convert_db_charset` aligne la base et toutes ses tables sur `utf8mb4` / `utf8mb4_unicode_ci`.
+
+```bash
+# 1. Sauvegarde obligatoire
+mariadb-dump --single-transaction -u <utilisateur_bdd> -p <nom_bdd> > ~/sauvegardes/lifetrack-avant-utf8mb4.sql
+
+# 2. Aperçu, sans rien modifier
+python manage.py convert_db_charset
+
+# 3. Conversion, puis contrôle (attendu : « Rien à convertir. »)
+python manage.py convert_db_charset --apply
+python manage.py convert_db_charset
+```
+
+La commande est sans effet si tout est déjà en `utf8mb4_unicode_ci`.
+
 ## 6. Diagnostic
 
 - **Endpoint de santé :** un code 503 avec `"database":"unavailable"` signifie que la base est inaccessible. Vérifier `DATABASE_URL` et les privilèges de l'utilisateur.

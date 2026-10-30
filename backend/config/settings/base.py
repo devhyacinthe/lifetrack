@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     # Tiers
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "django_filters",
     "drf_spectacular",
     "corsheaders",
     # LifeTrack
@@ -71,9 +72,32 @@ TEMPLATES = [
     },
 ]
 
+MYSQL_CHARSET = "utf8mb4"
+MYSQL_COLLATION = "utf8mb4_unicode_ci"
+
+
+def configure_mysql(database):
+    """Options communes à toute connexion MariaDB (production, tests sur MariaDB)."""
+    if database["ENGINE"] == "django.db.backends.mysql":
+        database.setdefault("OPTIONS", {}).update(
+            {
+                "charset": MYSQL_CHARSET,
+                # Refuse les valeurs invalides au lieu de les tronquer silencieusement.
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            }
+        )
+        # Base de test créée par pytest : même encodage que la production.
+        database.setdefault("TEST", {}).update(
+            {"CHARSET": MYSQL_CHARSET, "COLLATION": MYSQL_COLLATION}
+        )
+    return database
+
+
 # Base de données : SQLite par défaut, surchargée par DATABASE_URL (mysql://… en production).
 DATABASES = {
-    "default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"),
+    "default": configure_mysql(
+        env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    ),
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -148,6 +172,11 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API de gestion financière et de suivi sportif.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "TransactionTypeEnum": "apps.finance.models.TransactionType",
+        "AccountTypeEnum": "apps.finance.models.AccountType",
+        "PaymentMethodEnum": "apps.finance.models.PaymentMethod",
+    },
 }
 
 LOGGING = {

@@ -33,6 +33,8 @@
 | Limitation des tentatives | `login` 5/min, `register` 10/h par IP ; `NUM_PROXIES=0` | l'en-tête `X-Forwarded-For`, falsifiable, est ignoré |
 | Documentation API | `drf-spectacular` (OpenAPI 3, Swagger UI, ReDoc) | schéma généré depuis le code |
 | Filtres | `django-filter` | filtres déclaratifs et documentés dans OpenAPI |
+| Intégration continue | GitHub Actions (`.github/workflows/backend.yml`) : lint, contrôles Django, schéma OpenAPI, tests sur SQLite **et sur MariaDB 11.4** | mêmes conditions que la production à chaque `git push` |
+| Encodage MariaDB | `utf8mb4` / `utf8mb4_unicode_ci` (connexion et base de test) | tous les caractères Unicode ; insensible à la casse et aux accents pour les comparaisons |
 | CORS | `django-cors-headers` | liste blanche explicite |
 | Configuration | `django-environ` | lecture des variables d'environnement et de `DATABASE_URL` |
 | Fichiers statiques | WhiteNoise | fonctionne avec Passenger sans configuration Apache |

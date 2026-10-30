@@ -5,6 +5,7 @@ Django>=5.2,<5.3
 djangorestframework
 drf-spectacular
 djangorestframework-simplejwt
+django-filter
 django-environ
 django-cors-headers
 whitenoise

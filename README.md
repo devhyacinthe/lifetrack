@@ -2,7 +2,7 @@
 
 Application mobile personnelle de gestion financière et de suivi sportif.
 
-> **État : phase 2 (authentification).** Le backend gère les comptes utilisateurs et l'authentification JWT. Les modules financier et sportif ne sont pas encore développés. Voir [docs/development-plan.md](docs/development-plan.md).
+> **État : phase 4 (API financière).** Le backend gère l'authentification JWT, les comptes, les catégories, les transactions et les transferts. Le module sportif et l'application mobile ne sont pas encore développés. Voir [docs/development-plan.md](docs/development-plan.md).
 
 ## Organisation du dépôt (monorepo)
 
@@ -93,6 +93,13 @@ python manage.py check --deploy
 ```
 
 Résultat attendu : seulement les avertissements `security.W005` et `security.W021`, qui sont volontaires (HSTS activé progressivement).
+
+### Intégration continue
+
+À chaque `git push` qui touche `backend/`, GitHub Actions lance le lint, les contrôles Django, la validation du schéma OpenAPI et les tests, sur SQLite **et** sur MariaDB 11.4. Les résultats sont dans l'onglet **Actions** du dépôt GitHub.
+
+Pour lancer les tests sur une base MariaDB locale ou de test (jamais la production) :
+`TEST_DATABASE_URL=mysql://utilisateur:motdepasse@localhost:3306/lifetrack pytest`
 
 ### Dépendances
 
