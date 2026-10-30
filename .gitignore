@@ -1,0 +1,38 @@
+# --- Secrets et environnement ---
+.env
+.env.*
+!.env.example
+
+# --- Python / Django (backend/) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+db.sqlite3
+db.sqlite3-journal
+backend/staticfiles/
+backend/media/
+backend/tmp/
+
+# --- Node / Expo (mobile/) ---
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# --- Système / éditeurs ---
+.DS_Store
+Thumbs.db
+.idea/
+*.log
