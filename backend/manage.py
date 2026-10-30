@@ -7,6 +7,11 @@ import sys
 
 def main():
     """Run administrative tasks."""
+    from config.env import read_env_file
+
+    # Le .env doit être lu avant le choix des paramètres : sur le serveur, il impose
+    # config.settings.prod (sinon les commandes tourneraient avec les paramètres de dev).
+    read_env_file()
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
     try:
         from django.core.management import execute_from_command_line

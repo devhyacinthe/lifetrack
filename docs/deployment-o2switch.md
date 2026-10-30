@@ -108,6 +108,7 @@ ls -l .env      # attendu : -rw-------
 Contenu (les valeurs entre `< >` sont à remplacer ; ne jamais les commiter ni les partager) :
 
 ```
+DJANGO_SETTINGS_MODULE=config.settings.prod
 DJANGO_SECRET_KEY=<clé générée>
 DJANGO_ALLOWED_HOSTS=api.lifetrack.hyacinthe-dalmeida.com
 DATABASE_URL=mysql://<utilisateur_bdd>:<mot_de_passe_bdd>@localhost:3306/<nom_bdd>
@@ -115,6 +116,17 @@ CSRF_TRUSTED_ORIGINS=https://api.lifetrack.hyacinthe-dalmeida.com
 ```
 
 La liste complète des variables est dans `backend/.env.example`.
+
+**`DJANGO_SETTINGS_MODULE=config.settings.prod` est indispensable.** Passenger utilise toujours les paramètres de production. En revanche, sans cette ligne, les commandes `manage.py` lancées dans le Terminal utilisent les paramètres de **développement**. Incident constaté en phase 3 :
+- `collectstatic` n'a pas généré le manifeste des fichiers statiques, et `/admin/` répondait 500 (`Missing staticfiles manifest entry`) ;
+- `check` signalait `mysql.W002` (mode strict absent).
+
+Pour vérifier les paramètres utilisés :
+
+```bash
+python manage.py shell -c "from django.conf import settings; print(settings.SETTINGS_MODULE, settings.DEBUG)"
+# attendu : config.settings.prod False
+```
 
 Deux variables doivent rester absentes :
 - `DJANGO_BEHIND_PROXY` : Passenger transmet correctement le HTTPS à Django (constaté, aucune boucle de redirection).
