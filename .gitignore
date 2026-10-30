@@ -19,6 +19,10 @@ db.sqlite3-journal
 backend/staticfiles/
 backend/media/
 backend/tmp/
+# Fichiers créés sur le serveur par Setup Python App / Passenger
+backend/passenger.log
+backend/stderr.log
+backend/public/
 
 # --- Node / Expo (mobile/) ---
 node_modules/

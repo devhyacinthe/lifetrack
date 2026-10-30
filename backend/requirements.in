@@ -7,4 +7,5 @@ drf-spectacular
 django-environ
 django-cors-headers
 whitenoise
-mysqlclient
+# Pilote MariaDB en pur Python : mysqlclient ne peut pas être compilé sur o2switch (gcc interdit).
+PyMySQL

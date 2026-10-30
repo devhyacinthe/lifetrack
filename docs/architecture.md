@@ -26,7 +26,7 @@
 | Django | **5.2 LTS** | support étendu jusqu'en avril 2028, compatible Python 3.10 à 3.14 |
 | Base de production | **MariaDB 11.4** (version serveur vérifiée sur o2switch) | supportée par Django 5.2 ; le PostgreSQL d'o2switch (9.6) n'est plus maintenu ni supporté |
 | Base locale | **SQLite** | aucune installation nécessaire ; voir les limites dans [database.md](database.md) |
-| Pilote MariaDB | `mysqlclient`, avec `PyMySQL` en repli | `mysqlclient` est le pilote officiel mais se compile sur le serveur : à valider en phase 1b |
+| Pilote MariaDB | `PyMySQL` | pur Python ; `mysqlclient` ne peut pas être compilé sur o2switch (gcc interdit, constaté en phase 1b) |
 | Mode SQL MariaDB | `utf8mb4` + `STRICT_TRANS_TABLES` | refuse les données invalides au lieu de les tronquer |
 | Authentification | SimpleJWT + `token_blacklist` | révocation des jetons de renouvellement à la déconnexion |
 | Documentation API | `drf-spectacular` (OpenAPI 3, Swagger UI, ReDoc) | schéma généré depuis le code |

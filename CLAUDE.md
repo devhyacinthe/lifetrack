@@ -487,7 +487,9 @@ Le dépôt Git sera organisé en monorepo :
 
 MariaDB 11.4 (vérifiée sur le serveur o2switch) est la base de données cible en production. PostgreSQL a été écarté : le client installé sur o2switch est en version 9.6, qui n'est plus maintenue et n'est pas supportée par Django 5.2.
 
-Pilote : `mysqlclient` (pilote officiel de Django), à valider lors du premier déploiement ; `PyMySQL` en solution de repli si la compilation échoue sur le serveur.
+Pilote : `PyMySQL` (pur Python), enregistré via `pymysql.install_as_MySQLdb()` dans `backend/config/__init__.py`. `mysqlclient` a été écarté : il doit être compilé et l'accès à gcc est refusé sur o2switch (vérifié en phase 1b).
+
+Ne pas ajouter de dépendance Python qui nécessite une compilation sans vérifier qu'elle fournit un wheel Linux (manylinux) pour Python 3.12.
 
 ### Versions retenues (phase 0)
 

@@ -53,7 +53,7 @@ cd /home/<utilisateur>/lifetrack/backend
 pip install -r requirements.txt
 ```
 
-Si l'installation de `mysqlclient` échoue (compilation impossible sur le serveur), on bascule sur `PyMySQL` ; la marche à suivre sera documentée ici en phase 1b.
+**Contrainte constatée :** o2switch refuse l'accès au compilateur (`Permission denied: 'gcc'`). Toute dépendance doit donc fournir un wheel Linux précompilé (manylinux) pour Python 3.12. C'est pourquoi le pilote MariaDB est `PyMySQL` et non `mysqlclient`.
 
 ## 6. Variables d'environnement
 

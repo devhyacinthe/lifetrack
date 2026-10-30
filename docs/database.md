@@ -17,7 +17,7 @@
 - Encodage : `utf8mb4` (gère tous les caractères Unicode, y compris les emojis).
 - Mode SQL : `STRICT_TRANS_TABLES`, pour qu'une valeur invalide ou trop longue provoque une erreur au lieu d'être tronquée.
 - Moteur de tables : InnoDB (transactions et clés étrangères).
-- Pilote : `mysqlclient`, avec `PyMySQL` en repli (voir [deployment-o2switch.md](deployment-o2switch.md)).
+- Pilote : `PyMySQL`, enregistré comme `MySQLdb` dans `backend/config/__init__.py`. `mysqlclient` est inutilisable sur o2switch, car sa compilation exige gcc, dont l'accès est refusé.
 
 ## 3. Limites de SQLite à connaître
 
