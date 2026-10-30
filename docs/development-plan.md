@@ -2,6 +2,8 @@
 
 Chaque phase se termine par : tests exécutés et réussis, documentation à jour, résumé, puis **validation explicite** avant la phase suivante.
 
+**Choix de l'utilisateur (phase 5) :** les tests de l'application mobile (Jest, `expo-doctor`) sont écrits au fil des phases mais **exécutés en fin de projet (phase 13)**, et il n'y a pas d'intégration continue pour le mobile. Le backend garde sa CI (`.github/workflows/backend.yml`).
+
 ## Suivi des phases
 
 | Phase | Périmètre | Statut |
@@ -12,8 +14,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 2 | Modèle utilisateur et authentification | ✅ terminée (déployée et vérifiée sur o2switch) |
 | 3 | Modèles financiers et migrations | ✅ terminée (erreur 500 de l'admin corrigée) |
 | 4 | API financière et tests | ✅ terminée : CI verte (SQLite + MariaDB 11.4) ; déploiement et conversion `utf8mb4` confirmés par l'utilisateur (sorties non transmises, à revérifier en phase 14 avec `convert_db_charset`) |
-| 5 | Initialisation Expo et navigation | 🔄 en cours : TypeScript, ESLint et Prettier OK ; **tests Jest écrits mais pas encore exécutés** (reportés à la demande de l'utilisateur, connexion lente) ; `expo-doctor` et essai sur téléphone à faire |
-| 6 | Connexion du frontend à l'API | à faire |
+| 5 | Initialisation Expo et navigation | ✅ validée par l'utilisateur ; TypeScript, ESLint et Prettier OK ; ⚠️ **tests Jest et `expo-doctor` pas encore exécutés** (reportés en fin de projet, phase 13, à la demande de l'utilisateur) |
+| 6 | Connexion du frontend à l'API | 🔄 développée : TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; tests Jest écrits, non exécutés (phase 13) ; essai sur téléphone à faire |
 | 7 | Interfaces financières | à faire |
 | 8 | Budgets, comptes et objectifs financiers | à faire |
 | 9 | Module sportif backend | à faire |

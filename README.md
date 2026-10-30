@@ -129,6 +129,10 @@ cd mobile
 npm install
 ```
 
+### API utilisée
+
+L'adresse de l'API est dans `mobile/.env` (`EXPO_PUBLIC_API_URL`) : par défaut, l'API de production `https://api.lifetrack.hyacinthe-dalmeida.com`. Pour utiliser une autre API (par exemple un backend local), créer `mobile/.env.local`, qui est ignoré par Git et prioritaire, puis relancer `npx expo start --clear`.
+
 Pour ajouter une dépendance, utiliser **`npx expo install <paquet>`** plutôt que `npm install <paquet>` : Expo choisit alors la version compatible avec le SDK 58.
 
 ### Lancer l'application sur le téléphone
@@ -153,6 +157,8 @@ npx expo-doctor          # cohérence des dépendances avec le SDK
 
 Les icônes (`assets/images/`) sont générées par `tools/make_icons.py` :
 `uv run --with pillow python tools/make_icons.py assets/images`
+
+Dans **Expo Go**, l'icône affichée sur le téléphone est celle d'Expo Go : l'icône LifeTracker n'apparaît sur l'écran d'accueil qu'avec une version installable (APK, compilée avec EAS). Elle est aussi affichée dans l'application, sur les écrans de connexion et d'inscription.
 
 ## Sécurité
 

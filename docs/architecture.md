@@ -45,7 +45,8 @@
 | Jetons côté mobile | `expo-secure-store` | stockage chiffré par le système |
 | SDK mobile | **Expo SDK 58** (React Native 0.88.1, React 19.3), Node ≥ 22.13 | dernière version au 30/10/2026 ; compatible avec Expo Go |
 | Navigation | Expo Router, onglets natifs (`expo-router/native-tabs`) | API officielle du SDK 58 ; Android limite la barre à 5 onglets |
-| Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) | thèmes clair et sombre, composants accessibles, icônes intégrées |
+| Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) + `@expo/vector-icons` (icônes Material Community utilisées par Paper) | thèmes clair et sombre, composants accessibles |
+| Identité visuelle | vert émeraude de l'icône (`#14745C`), accent orangé, cartes arrondies (24 px), fonds teintés ; composants `Screen`, `SectionCard`, `IconBadge`, `AuthShell` | rendu cohérent entre les écrans, défini une seule fois dans `src/theme/` et `src/components/` |
 | Graphiques | **react-native-gifted-charts** (installée en phase 11) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
 | Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | demande de l'utilisateur |
 | Installation des paquets | toujours `npx expo install <paquet>` | choisit les versions compatibles avec le SDK |
@@ -100,6 +101,21 @@ lifetrack/
 ```
 
 Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fichier de ce dossier en route.
+
+### Communication avec l'API (phase 6)
+
+| Élément | Choix |
+|---|---|
+| URL de l'API | `EXPO_PUBLIC_API_URL` dans `mobile/.env` (production, commité) ; `mobile/.env.local` (ignoré) pour pointer ailleurs |
+| Client HTTP | `src/api/client.ts`, basé sur `fetch` : seul endroit qui connaît les URL ; délai maximal de 20 s |
+| Jeton `access` | en mémoire uniquement |
+| Jeton `refresh` | `expo-secure-store` (stockage chiffré du système) |
+| Renouvellement | sur un 401 : **un seul** renouvellement partagé entre les requêtes simultanées, puis une seule nouvelle tentative ; un second échec déconnecte (pas de boucle) |
+| Session | `src/auth/auth-context.tsx` : restaurée au démarrage depuis le jeton chiffré ; l'écran de démarrage reste affiché pendant la vérification |
+| Garde de navigation | `Stack.Protected` : onglets réservés aux utilisateurs connectés, écrans d'accès aux autres |
+| Données serveur | TanStack Query ; cache entièrement vidé à la déconnexion |
+| Formulaires | React Hook Form + Zod (`src/schemas/`) ; les erreurs du backend s'affichent sous les champs (`src/forms/api-errors.ts`) |
+| Erreurs | `ApiError` (réponse en échec, avec erreurs par champ) et `NetworkError` (serveur injoignable) |
 
 ### Structure type d'une application Django
 

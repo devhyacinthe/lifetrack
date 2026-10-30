@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# URL publique de l'API pour l'application mobile (aucun secret)
+!mobile/.env
 
 # --- Python / Django (backend/) ---
 __pycache__/

@@ -3,12 +3,13 @@ import { Screen } from '@/components/screen';
 
 export default function StatsScreen() {
   return (
-    <Screen title="Statistiques">
+    <Screen title="Statistiques" subtitle="Graphiques financiers, sportifs et corporels.">
       <ComingSoon
-        icon="chart-bar"
+        icon="chart-box-outline"
         title="Statistiques et mesures corporelles"
         description="Graphiques financiers et sportifs, poids et autres mesures."
         phase={11}
+        tone="secondary"
       />
     </Screen>
   );

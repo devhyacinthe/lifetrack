@@ -3,7 +3,7 @@ import { Screen } from '@/components/screen';
 
 export default function FinancesScreen() {
   return (
-    <Screen title="Finances">
+    <Screen title="Finances" subtitle="Revenus, dépenses, comptes et budgets.">
       <ComingSoon
         icon="swap-vertical"
         title="Transactions"
@@ -15,6 +15,7 @@ export default function FinancesScreen() {
         title="Comptes, budgets et objectifs"
         description="Espèces, banque, Mobile Money, épargne, budgets et objectifs d'épargne."
         phase={8}
+        tone="secondary"
       />
     </Screen>
   );

@@ -1,5 +1,7 @@
 import { StyleSheet, View } from 'react-native';
-import { Card, Chip, Icon, Text, useTheme } from 'react-native-paper';
+import { Surface, Text, useTheme } from 'react-native-paper';
+
+import { IconBadge } from './icon-badge';
 
 type ComingSoonProps = {
   icon: string;
@@ -7,38 +9,45 @@ type ComingSoonProps = {
   description: string;
   /** Phase du plan de développement dans laquelle la fonctionnalité sera livrée. */
   phase: number;
+  tone?: 'primary' | 'secondary' | 'tertiary';
 };
 
 /**
  * Emplacement d'une fonctionnalité pas encore développée.
  * Affiche explicitement « Bientôt disponible » : aucune donnée fictive n'est présentée.
  */
-export function ComingSoon({ icon, title, description, phase }: ComingSoonProps) {
+export function ComingSoon({ icon, title, description, phase, tone = 'primary' }: ComingSoonProps) {
   const { colors } = useTheme();
 
   return (
-    <Card mode="contained" accessibilityLabel={`${title} : bientôt disponible`}>
-      <Card.Content style={styles.content}>
-        <Icon source={icon} size={40} color={colors.primary} />
-        <Text variant="titleMedium" style={styles.center}>
-          {title}
-        </Text>
-        <Text variant="bodyMedium" style={[styles.center, { color: colors.onSurfaceVariant }]}>
-          {description}
-        </Text>
-        <View style={styles.chips}>
-          <Chip compact icon="clock-outline">
-            Bientôt disponible
-          </Chip>
-          <Chip compact>{`Phase ${phase}`}</Chip>
+    <Surface
+      elevation={0}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.outlineVariant }]}
+      accessible
+      accessibilityLabel={`${title} : bientôt disponible, phase ${phase}`}>
+      <View style={styles.row}>
+        <IconBadge icon={icon} tone={tone} size={52} />
+        <View style={[styles.pill, { backgroundColor: colors.surfaceVariant }]}>
+          <Text variant="labelSmall" style={{ color: colors.onSurfaceVariant }}>
+            {`BIENTÔT · PHASE ${phase}`}
+          </Text>
         </View>
-      </Card.Content>
-    </Card>
+      </View>
+      <Text variant="titleLarge">{title}</Text>
+      <Text variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>
+        {description}
+      </Text>
+    </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  center: { textAlign: 'center' },
-  chips: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  card: { borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, padding: 20, gap: 8 },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  pill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
 });
