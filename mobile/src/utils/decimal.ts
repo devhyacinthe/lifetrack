@@ -6,6 +6,7 @@
  */
 export function normalizeDecimalInput(input: string, maxIntegerDigits: number): string | null {
   const cleaned = input.replace(/[\s  ]/g, '').replace(',', '.');
-  const pattern = new RegExp(`^\d{1,${maxIntegerDigits}}(\.\d{1,2})?$`);
+  // Antislashs doublés : dans un gabarit `…`, « \d » deviendrait la lettre « d ».
+  const pattern = new RegExp(`^\\d{1,${maxIntegerDigits}}(\\.\\d{1,2})?$`);
   return pattern.test(cleaned) ? cleaned : null;
 }
