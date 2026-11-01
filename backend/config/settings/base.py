@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.finance",
     "apps.workouts",
+    "apps.body_metrics",
 ]
 
 AUTH_USER_MODEL = "users.User"

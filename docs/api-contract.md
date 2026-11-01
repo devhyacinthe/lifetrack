@@ -272,6 +272,87 @@ Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre util
 - `period` : `weekly` (par défaut) ou `monthly`. `date` : date de référence (aujourd'hui par défaut, dans le fuseau de l'utilisateur).
 - Une période sans séance renvoie des zéros et une liste `by_activity` vide.
 
+### Historique : `GET /api/v1/workouts/stats/history/?period=weekly&count=8&date=2026-10-15` (phase 11a)
+
+```json
+{ "period": "weekly", "periods": [
+  { "period_start": "2026-08-24", "period_end": "2026-08-30", "sessions_count": 0,
+    "total_duration_seconds": 0, "total_distance_km": "0.00" },
+  "…",
+  { "period_start": "2026-10-12", "period_end": "2026-10-18", "sessions_count": 3,
+    "total_duration_seconds": 7801, "total_distance_km": "12.20" }
+] }
+```
+
+- De la plus ancienne période à celle qui contient `date`. Par défaut : **8 semaines** ou **6 mois** ; `count` de 1 à 52.
+- Séances terminées seulement ; chaque séance est rangée selon sa date locale. Une période vide vaut zéro.
+
+## 3 quinquies. Statistiques financières (phase 11a)
+
+Les montants de devises différentes ne s'additionnent pas : `currency` (par défaut, la devise préférée du profil) limite le calcul aux comptes de cette devise. Les transferts ne sont jamais comptés.
+
+### Totaux mensuels : `GET /api/v1/finance/stats/monthly/?months=6&date=2026-10-15&currency=XOF`
+
+```json
+{ "currency": "XOF", "months": [
+  { "period_start": "2026-05-01", "period_end": "2026-05-31", "income": "0.00", "expense": "0.00", "net": "0.00" },
+  "…",
+  { "period_start": "2026-10-01", "period_end": "2026-10-31", "income": "300000.00", "expense": "120000.00", "net": "180000.00" }
+] }
+```
+
+- `months` : 1 à 24, **6 par défaut**, mois de `date` compris. `net` = revenus − dépenses du mois.
+
+### Par catégorie : `GET /api/v1/finance/stats/categories/?type=expense&period=monthly&date=2026-10-15`
+
+```json
+{ "type": "expense", "currency": "XOF", "period": "monthly",
+  "period_start": "2026-10-01", "period_end": "2026-10-31", "total": "60000.00",
+  "categories": [
+    { "category": "uuid", "category_name": "Alimentation", "total": "45000.00", "transactions_count": 2, "percent": "75.0" }
+  ] }
+```
+
+- `type` : `expense` (par défaut) ou `income` ; `period` : `weekly`, `monthly` (par défaut) ou `yearly`.
+- Catégories triées du montant le plus élevé au plus faible ; `percent` arrondi à 0,1 % (la somme peut différer légèrement de 100).
+
+## 3 sexies. Mesures corporelles (phase 11a)
+
+### Types de mesure : `/api/v1/body/metric-types/`
+
+```json
+{ "id": "uuid", "name": "Poids", "unit": "kg", "is_active": true,
+  "latest_value": "72.50", "latest_date": "2026-10-15", "measurements_count": 12, "…": "…" }
+```
+
+- Types initiaux : Poids (kg), Tour de taille, Tour de hanches, Tour de poitrine (cm), Masse grasse (%). Extensibles.
+- `name` unique par utilisateur. **L'unité ne peut plus changer** dès qu'une mesure existe (400 sur `unit`).
+- `latest_value`, `latest_date`, `measurements_count` : calculés, en lecture seule (`null` ou 0 sans mesure).
+- `DELETE` d'un type utilisé : 409 ; il faut le désactiver (`is_active: false`).
+
+### Mesures : `/api/v1/body/measurements/`
+
+```json
+{ "id": "uuid", "metric_type": "uuid", "metric_type_name": "Poids", "unit": "kg",
+  "date": "2026-10-15", "value": "72.50", "notes": "", "…": "…" }
+```
+
+- Obligatoires : `metric_type` (actif, de l'utilisateur), `date` (pas dans le futur, fuseau de l'utilisateur), `value` (0,01 à 99 999,99).
+- **Une seule valeur par type et par jour** : une deuxième saisie renvoie 400 sur `date` (« modifiez-la »).
+- Filtres : `metric_type`, `date_after`, `date_before` ; tri `ordering` : `date`, `value`, `created_at` (par défaut `-date`).
+
+### Série : `GET /api/v1/body/metric-types/{id}/series/?months=6&date=2026-10-15`
+
+```json
+{ "metric_type": "uuid", "name": "Poids", "unit": "kg",
+  "start_date": "2026-05-01", "end_date": "2026-10-15",
+  "points": [ { "date": "2026-05-01", "value": "78.00" }, { "date": "2026-10-15", "value": "75.00" } ],
+  "minimum": "75.00", "maximum": "78.00", "first": "78.00", "last": "75.00", "change": "-3.00" }
+```
+
+- Du premier jour du mois situé `months − 1` mois avant `date` jusqu'à `date`. `months` : 1 à 60, 6 par défaut.
+- **Seules les valeurs enregistrées** : aucune interpolation. Sans mesure : `points` vide et résumé à `null`.
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.

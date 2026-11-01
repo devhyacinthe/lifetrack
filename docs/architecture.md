@@ -80,7 +80,7 @@ lifetrack/
 │       ├── users/                 # phase 2
 │       ├── finance/               # phases 3-4, 8
 │       ├── workouts/              # phase 9
-│       ├── body_metrics/          # phase 11
+│       ├── body_metrics/          # phase 11a : types de mesure, mesures, séries
 │       └── dashboard/             # phase 12
 └── mobile/                        # application « LifeTracker » (Expo SDK 58)
     ├── app.json                   # nom, icônes, écran de démarrage
@@ -209,3 +209,7 @@ apps/<domaine>/
 | Erreurs du backend | `renameFieldErrors` relie `duration_seconds`, `distance_km`… aux champs du formulaire ; une erreur sur un champ absent (ex. `status`) devient le message général, avec son texte |
 
 **Types des routes (`.expo/types/router.d.ts`)** : ce fichier est généré par `npx expo start`. Ne pas le supprimer avant de relancer Expo : la première génération est partielle (des routes manquent et `tsc` échoue). En cas de doute, relancer `npx expo start` et attendre quelques secondes avant `npm run typecheck`.
+
+### Barre de navigation (phase 11a)
+
+Icône **en contour** au repos et **pleine** sur l'onglet actif, posée sur une pastille `secondaryContainer` (Material 3). Android : `MaterialCommunityIcons` via `NativeTabs.Trigger.VectorIcon`, les mêmes icônes que le reste de l'application ; iOS : SF Symbols. Les noms sont dans `src/constants/tabs.ts`.

@@ -1,12 +1,13 @@
 """Lectures et calculs du suivi sportif (statistiques, progression des objectifs)."""
 
 import datetime
+from bisect import bisect_right
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Count, Sum
 
-from apps.core.periods import local_day_range, period_bounds
+from apps.core.periods import local_day_range, period_bounds, period_sequence, user_zone
 
 from .models import GoalMetric, Workout, WorkoutStatus
 
@@ -112,6 +113,40 @@ def workout_stats(user, period, reference_date):
         total_distance_km=distance,
         by_activity=by_activity,
     )
+
+
+@dataclass(frozen=True)
+class PeriodTotals:
+    period_start: datetime.date
+    period_end: datetime.date
+    sessions_count: int
+    total_duration_seconds: int
+    total_distance_km: Decimal
+
+
+def workout_history(user, period, reference_date, count):
+    """
+    Séances, durée et distance de chacune des `count` dernières semaines ou derniers mois,
+    du plus ancien à la période de reference_date. Une période sans séance vaut zéro.
+
+    Une seule requête : chaque séance est rangée dans sa période selon sa date locale.
+    """
+    periods = period_sequence(period, reference_date, count)
+    starts = [start for start, _ in periods]
+    buckets = [[0, 0, ZERO] for _ in periods]
+    zone = user_zone(user)
+    rows = workouts_in_period(user, periods[0][0], periods[-1][1]).values_list(
+        "started_at", "duration_seconds", "distance_km"
+    )
+    for started_at, duration, distance in rows:
+        bucket = buckets[bisect_right(starts, started_at.astimezone(zone).date()) - 1]
+        bucket[0] += 1
+        bucket[1] += duration
+        bucket[2] += distance or ZERO
+    return [
+        PeriodTotals(start, end, sessions, duration, distance)
+        for (start, end), (sessions, duration, distance) in zip(periods, buckets, strict=True)
+    ]
 
 
 # --- Objectifs ----------------------------------------------------------------------------

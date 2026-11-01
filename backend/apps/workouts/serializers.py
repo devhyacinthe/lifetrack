@@ -329,3 +329,16 @@ class WorkoutStatsSerializer(serializers.Serializer):
     average_duration_seconds = serializers.IntegerField()
     total_distance_km = serializers.DecimalField(max_digits=12, decimal_places=2)
     by_activity = ActivityStatsSerializer(many=True)
+
+
+class PeriodTotalsSerializer(serializers.Serializer):
+    period_start = serializers.DateField()
+    period_end = serializers.DateField()
+    sessions_count = serializers.IntegerField()
+    total_duration_seconds = serializers.IntegerField()
+    total_distance_km = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class WorkoutHistorySerializer(serializers.Serializer):
+    period = serializers.ChoiceField(choices=GoalPeriod.choices)
+    periods = PeriodTotalsSerializer(many=True)

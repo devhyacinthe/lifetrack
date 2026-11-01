@@ -49,3 +49,26 @@ def local_day_range(user, start_date, end_date):
         end_date + datetime.timedelta(days=1), datetime.time.min, tzinfo=zone
     )
     return start, end
+
+
+def shift_months(day, months):
+    """Premier jour du mois situé `months` mois avant (négatif) ou après celui de `day`."""
+    index = day.year * 12 + day.month - 1 + months
+    return datetime.date(index // 12, index % 12 + 1, 1)
+
+
+def period_sequence(period, reference_date, count):
+    """
+    Les `count` dernières périodes (semaines ou mois), de la plus ancienne à celle qui
+    contient reference_date. Chaque élément : (début, fin), bornes incluses.
+    """
+    if count < 1:
+        raise ValueError("count doit être au moins 1.")
+    if period == WEEKLY:
+        last_start, _ = period_bounds(WEEKLY, reference_date)
+        starts = [last_start - datetime.timedelta(weeks=n) for n in range(count - 1, -1, -1)]
+    elif period == MONTHLY:
+        starts = [shift_months(reference_date, -n) for n in range(count - 1, -1, -1)]
+    else:
+        raise ValueError(f"Période inconnue : {period}")
+    return [period_bounds(period, start) for start in starts]

@@ -13,5 +13,6 @@ router.register("goals", views.WorkoutGoalViewSet, basename="goal")
 
 urlpatterns = [
     path("stats/", views.WorkoutStatsView.as_view(), name="stats"),
+    path("stats/history/", views.WorkoutHistoryView.as_view(), name="stats-history"),
     *router.urls,
 ]

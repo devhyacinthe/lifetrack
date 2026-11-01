@@ -10,9 +10,11 @@ from .models import (
     AMOUNT_MAX_DIGITS,
     Account,
     Budget,
+    BudgetPeriod,
     Category,
     SavingsGoal,
     Transaction,
+    TransactionType,
     Transfer,
 )
 from .selectors import (
@@ -401,3 +403,41 @@ class SavingsGoalSerializer(serializers.ModelSerializer):
         instance.percent = percent
         instance.is_reached = remaining == 0
         return super().to_representation(instance)
+
+
+# --- Statistiques (lecture seule, pour le schéma OpenAPI) ----------------------------------
+
+
+def _total_field():
+    return serializers.DecimalField(max_digits=AMOUNT_MAX_DIGITS + 3, decimal_places=2)
+
+
+class MonthTotalsSerializer(serializers.Serializer):
+    period_start = serializers.DateField()
+    period_end = serializers.DateField()
+    income = _total_field()
+    expense = _total_field()
+    net = _total_field()
+
+
+class MonthlyStatsSerializer(serializers.Serializer):
+    currency = serializers.CharField()
+    months = MonthTotalsSerializer(many=True)
+
+
+class CategoryTotalSerializer(serializers.Serializer):
+    category = serializers.UUIDField(source="category_id")
+    category_name = serializers.CharField()
+    total = _total_field()
+    transactions_count = serializers.IntegerField()
+    percent = serializers.DecimalField(max_digits=4, decimal_places=1)
+
+
+class CategoryStatsSerializer(serializers.Serializer):
+    type = serializers.ChoiceField(choices=TransactionType.choices)
+    currency = serializers.CharField()
+    period = serializers.ChoiceField(choices=BudgetPeriod.choices)
+    period_start = serializers.DateField()
+    period_end = serializers.DateField()
+    total = _total_field()
+    categories = CategoryTotalSerializer(many=True)

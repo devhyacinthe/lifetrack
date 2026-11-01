@@ -240,3 +240,38 @@ Un seul objectif par (mesure, période, activité). La contrainte est en base po
 - Seules les séances **terminées** sont comptées.
 - **Statistiques** : nombre de séances, durée totale, durée moyenne (arrondie à la seconde), distance totale, et détail par activité. Une période sans séance renvoie des zéros.
 - **Progression** d'un objectif : la valeur atteinte sur la période, un pourcentage borné à 100, et `is_reached`. Une requête SQL par type de période présent.
+
+### 5.6 Mesures corporelles (phase 11a)
+
+Application `body_metrics`, migrations `0001_initial` et `0002_default_metric_types_for_existing_users`. Tous les modèles appartiennent à un utilisateur (`CASCADE`).
+
+**`body_metrics.MetricType`** : type de mesure, propre à chaque utilisateur et extensible
+
+| Champ | Règles |
+|---|---|
+| `name` | unique par utilisateur (contrainte en base), 60 caractères |
+| `unit` | 15 caractères ; ne change plus dès qu'une mesure existe (vérifié par l'API) |
+| `is_active` | un type utilisé est désactivé plutôt que supprimé |
+
+Chaque nouvel utilisateur reçoit 5 types (`body_metrics/defaults.py`) par un signal `post_save` ; les utilisateurs existants par la migration `0002`.
+
+**`body_metrics.Measurement`** : valeur saisie par l'utilisateur, jamais modifiée ni estimée par l'application
+
+| Champ | Règles |
+|---|---|
+| `metric_type` | du même utilisateur ; `RESTRICT` |
+| `date` | date locale ; pas dans le futur (vérifié par l'API) |
+| `value` | Decimal(7,2), strictement positive (contrainte en base) |
+| `notes` | facultatives, 255 caractères |
+
+**Une valeur par type et par jour** : contrainte d'unicité (`metric_type`, `date`) en base, et message explicite renvoyé par le serializer.
+
+**Calculs** (`body_metrics/selectors.py`) : dernière valeur et nombre de mesures par type (sous-requêtes, une seule requête SQL) ; série d'une période avec minimum, maximum, première et dernière valeur, et variation. Aucune valeur n'est interpolée.
+
+### 5.7 Statistiques (phase 11a)
+
+Aucune table : tout est recalculé depuis les données persistées.
+
+- `core.periods.period_sequence` donne les N dernières semaines ou les N derniers mois ; `shift_months` décale d'un nombre de mois.
+- Finances (`finance/selectors.py`) : `monthly_totals` (une requête groupée par année, mois et type) et `category_totals`, pour **une seule devise** ; les transferts sont exclus.
+- Sport (`workouts/selectors.py`) : `workout_history` lit les séances terminées de toute la plage en une requête et les range par date locale.

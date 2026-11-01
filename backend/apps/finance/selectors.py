@@ -4,10 +4,15 @@ import datetime
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
-from django.db.models import DecimalField, F, OuterRef, Subquery, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Count, DecimalField, F, OuterRef, Subquery, Sum, Value
+from django.db.models.functions import Coalesce, ExtractMonth, ExtractYear
 
-from apps.core.periods import period_bounds, user_today  # noqa: F401  (réexportés)
+from apps.core.periods import (  # noqa: F401  (réexportés)
+    MONTHLY,
+    period_bounds,
+    period_sequence,
+    user_today,
+)
 
 from .models import (
     AMOUNT_DECIMAL_PLACES,
@@ -169,3 +174,86 @@ def goal_progress(goal):
     remaining = max(goal.target_amount - current, ZERO)
     percent = min(max(_percent(current, goal.target_amount), ZERO), Decimal("100.0"))
     return remaining, percent
+
+
+# --- Statistiques ---------------------------------------------------------------------
+# Les montants de devises différentes ne s'additionnent pas : chaque calcul porte sur les
+# comptes d'une seule devise. Les transferts ne sont jamais comptés (ni revenu ni dépense).
+
+
+@dataclass(frozen=True)
+class MonthTotals:
+    period_start: datetime.date
+    period_end: datetime.date
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+
+
+def monthly_totals(user, currency, reference_date, months):
+    """
+    Revenus, dépenses et solde (revenus - dépenses) des `months` derniers mois calendaires,
+    du plus ancien au mois de reference_date. Un mois sans transaction vaut zéro.
+    """
+    periods = period_sequence(MONTHLY, reference_date, months)
+    rows = (
+        Transaction.objects.filter(
+            user=user,
+            account__currency=currency,
+            date__gte=periods[0][0],
+            date__lte=periods[-1][1],
+        )
+        .order_by()
+        .annotate(year=ExtractYear("date"), month=ExtractMonth("date"))
+        .values("year", "month", "type")
+        .annotate(total=Sum("amount"))
+    )
+    totals = {(row["year"], row["month"], row["type"]): row["total"] for row in rows}
+
+    result = []
+    for start, end in periods:
+        income = totals.get((start.year, start.month, TransactionType.INCOME), ZERO)
+        expense = totals.get((start.year, start.month, TransactionType.EXPENSE), ZERO)
+        result.append(MonthTotals(start, end, income, expense, income - expense))
+    return result
+
+
+@dataclass(frozen=True)
+class CategoryTotal:
+    category_id: object
+    category_name: str
+    total: Decimal
+    transactions_count: int
+    percent: Decimal
+
+
+def category_totals(user, transaction_type, currency, start, end):
+    """
+    Montant de chaque catégorie (revenus ou dépenses) entre deux dates incluses, du plus
+    élevé au plus faible, avec sa part du total (arrondie à 0,1 %).
+    """
+    rows = (
+        Transaction.objects.filter(
+            user=user,
+            type=transaction_type,
+            account__currency=currency,
+            date__gte=start,
+            date__lte=end,
+        )
+        .order_by()
+        .values("category_id", "category__name")
+        .annotate(total=Sum("amount"), count=Count("id"))
+    )
+    grand_total = sum((row["total"] for row in rows), ZERO)
+    items = [
+        CategoryTotal(
+            category_id=row["category_id"],
+            category_name=row["category__name"],
+            total=row["total"],
+            transactions_count=row["count"],
+            percent=_percent(row["total"], grand_total),
+        )
+        for row in rows
+    ]
+    items.sort(key=lambda item: (-item.total, item.category_name))
+    return grand_total, items

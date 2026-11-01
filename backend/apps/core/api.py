@@ -52,6 +52,26 @@ def reference_date(request):
         raise serializers.ValidationError({"date": exc.detail}) from exc
 
 
+def integer_param(request, name, default, minimum, maximum):
+    """Entier facultatif du paramètre `name`, borné ; erreur 400 sur ce paramètre sinon."""
+    raw = request.query_params.get(name)
+    if raw in (None, ""):
+        return default
+    field = serializers.IntegerField(min_value=minimum, max_value=maximum)
+    try:
+        return field.run_validation(raw)
+    except serializers.ValidationError as exc:
+        raise serializers.ValidationError({name: exc.detail}) from exc
+
+
+def choice_param(request, name, choices, default):
+    """Valeur facultative du paramètre `name`, parmi `choices` ; erreur 400 sinon."""
+    value = request.query_params.get(name) or default
+    if value not in choices:
+        raise serializers.ValidationError({name: f"Valeurs possibles : {', '.join(choices)}."})
+    return value
+
+
 class UserOwnedViewSet(viewsets.ModelViewSet):
     """
     Base des ressources privées : chaque requête est limitée aux objets de l'utilisateur.

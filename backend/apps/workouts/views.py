@@ -1,5 +1,5 @@
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,17 +9,20 @@ from apps.core.api import (
     REFERENCE_DATE_PARAMETER,
     ReferenceDateMixin,
     UserOwnedViewSet,
+    choice_param,
+    integer_param,
     reference_date,
 )
 
 from . import services
 from .filters import ActivityTypeFilter, WorkoutFilter, WorkoutGoalFilter
 from .models import ActivityType, GoalPeriod, Workout, WorkoutGoal
-from .selectors import workout_stats
+from .selectors import workout_history, workout_stats
 from .serializers import (
     ActivityTypeSerializer,
     FinishWorkoutSerializer,
     WorkoutGoalSerializer,
+    WorkoutHistorySerializer,
     WorkoutSerializer,
     WorkoutStatsSerializer,
 )
@@ -100,10 +103,39 @@ class WorkoutStatsView(APIView):
     """Statistiques sportives d'une semaine ou d'un mois, dans le fuseau de l'utilisateur."""
 
     def get(self, request):
-        period = request.query_params.get("period", GoalPeriod.WEEKLY)
-        if period not in GoalPeriod.values:
-            raise serializers.ValidationError(
-                {"period": f"Valeurs possibles : {', '.join(GoalPeriod.values)}."}
-            )
+        period = choice_param(request, "period", GoalPeriod.values, GoalPeriod.WEEKLY)
         stats = workout_stats(request.user, period, reference_date(request))
         return Response(WorkoutStatsSerializer(stats).data)
+
+
+# Par défaut : 8 semaines ou 6 mois (choix de l'utilisateur en phase 11).
+DEFAULT_HISTORY_COUNT = {GoalPeriod.WEEKLY: 8, GoalPeriod.MONTHLY: 6}
+MAX_HISTORY_COUNT = 52
+
+
+@extend_schema(
+    tags=["workouts"],
+    parameters=[
+        OpenApiParameter("period", enum=GoalPeriod.values, description="Par défaut : weekly."),
+        OpenApiParameter(
+            "count",
+            type=OpenApiTypes.INT,
+            description=(
+                f"Nombre de périodes, celle de la date de référence comprise "
+                f"(1 à {MAX_HISTORY_COUNT}). Par défaut : 8 semaines ou 6 mois."
+            ),
+        ),
+        REFERENCE_DATE_PARAMETER,
+    ],
+    responses=WorkoutHistorySerializer,
+)
+class WorkoutHistoryView(APIView):
+    """Séances, durée et distance de plusieurs semaines ou mois, pour les graphiques."""
+
+    def get(self, request):
+        period = choice_param(request, "period", GoalPeriod.values, GoalPeriod.WEEKLY)
+        count = integer_param(
+            request, "count", DEFAULT_HISTORY_COUNT[period], minimum=1, maximum=MAX_HISTORY_COUNT
+        )
+        periods = workout_history(request.user, period, reference_date(request), count)
+        return Response(WorkoutHistorySerializer({"period": period, "periods": periods}).data)
