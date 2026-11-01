@@ -145,7 +145,7 @@ apps/<domaine>/
 | Jetons | `access` en mémoire ; `refresh` dans `expo-secure-store` |
 | Renouvellement | sur un 401 : **un seul** renouvellement partagé entre les requêtes simultanées, puis une seule nouvelle tentative ; un second échec déconnecte (pas de boucle) |
 | Session | restaurée au démarrage depuis le jeton chiffré ; l'écran de démarrage reste affiché pendant la vérification |
-| Garde de navigation | `Stack.Protected` : écrans de l'application réservés aux utilisateurs connectés, écrans d'accès aux autres |
+| Garde de navigation | `Stack.Protected` : écrans de l'application réservés aux utilisateurs connectés, écrans d'accès aux autres. `src/app/+not-found.tsx` renvoie toute adresse sans écran accessible vers la connexion (ou l'accueil si connecté) : c'est le cas à l'ouverture de l'APK (`lifetracker:///`) quand personne n'est connecté |
 | Formulaires | React Hook Form + Zod ; les erreurs du backend s'affichent sous les champs (`src/forms/api-errors.ts`) |
 | Erreurs | `ApiError` (réponse en échec, avec erreurs par champ) et `NetworkError` (serveur injoignable) |
 
