@@ -289,3 +289,102 @@ export type WorkoutStats = {
   total_distance_km: Decimal;
   by_activity: ActivityStats[];
 };
+
+export type PeriodTotals = {
+  period_start: string;
+  period_end: string;
+  sessions_count: number;
+  total_duration_seconds: number;
+  total_distance_km: Decimal;
+};
+
+/** Historique : de la plus ancienne période à la période en cours. */
+export type WorkoutHistory = {
+  period: WorkoutGoalPeriod;
+  periods: PeriodTotals[];
+};
+
+// --- Statistiques financières --------------------------------------------------------------
+
+export type MonthTotals = {
+  period_start: string;
+  period_end: string;
+  income: Decimal;
+  expense: Decimal;
+  /** Revenus moins dépenses du mois. */
+  net: Decimal;
+};
+
+export type MonthlyStats = {
+  currency: string;
+  months: MonthTotals[];
+};
+
+export type CategoryTotal = {
+  category: string;
+  category_name: string;
+  total: Decimal;
+  transactions_count: number;
+  /** Part du total, arrondie à 0,1 %. */
+  percent: Decimal;
+};
+
+export type CategoryStats = {
+  type: TransactionType;
+  currency: string;
+  period: BudgetPeriod;
+  period_start: string;
+  period_end: string;
+  total: Decimal;
+  categories: CategoryTotal[];
+};
+
+// --- Mesures corporelles -------------------------------------------------------------------
+
+export type MetricType = {
+  id: string;
+  name: string;
+  unit: string;
+  is_active: boolean;
+  /** Calculés par le backend à partir des mesures enregistrées. */
+  latest_value: Decimal | null;
+  latest_date: string | null;
+  measurements_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MetricTypePayload = Pick<MetricType, 'name' | 'unit'>;
+export type MetricTypeUpdatePayload = Partial<Pick<MetricType, 'name' | 'unit' | 'is_active'>>;
+
+export type Measurement = {
+  id: string;
+  metric_type: string;
+  metric_type_name: string;
+  unit: string;
+  /** Date locale YYYY-MM-DD ; une seule mesure par type et par jour. */
+  date: string;
+  value: Decimal;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MeasurementPayload = Pick<Measurement, 'metric_type' | 'date' | 'value' | 'notes'>;
+
+export type SeriesPoint = { date: string; value: Decimal };
+
+export type MetricSeries = {
+  metric_type: string;
+  name: string;
+  unit: string;
+  start_date: string;
+  end_date: string;
+  /** Valeurs réellement saisies, de la plus ancienne à la plus récente (aucune interpolation). */
+  points: SeriesPoint[];
+  minimum: Decimal | null;
+  maximum: Decimal | null;
+  first: Decimal | null;
+  last: Decimal | null;
+  change: Decimal | null;
+};

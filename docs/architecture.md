@@ -48,7 +48,7 @@
 | Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) + `@expo/vector-icons` (icônes Material Community utilisées par Paper) | thèmes clair et sombre, composants accessibles |
 | Identité visuelle | vert émeraude de l'icône (`#14745C`), accent orangé, cartes arrondies (24 px), fonds teintés ; composants `Screen`, `SectionCard`, `IconBadge`, `AuthShell` | rendu cohérent entre les écrans, défini une seule fois dans `src/theme/` et `src/components/` |
 | Sélecteur de date | `@react-native-community/datetimepicker` (phase 7) | sélecteur natif recommandé par Expo, inclus dans Expo Go ; dialogue natif sur Android, compact sur iOS |
-| Graphiques | **react-native-gifted-charts** (installée en phase 11) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
+| Graphiques | **react-native-gifted-charts** 1.4 (installée en phase 11b avec `npx expo install`, avec `react-native-svg` et `expo-linear-gradient`, compatibles Expo Go) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
 | Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | demande de l'utilisateur |
 | Installation des paquets | toujours `npx expo install <paquet>` | choisit les versions compatibles avec le SDK |
 
@@ -93,6 +93,7 @@ lifetrack/
         │   ├── (tabs)/            # 5 onglets : index (Accueil), finances, sport, stats, profile
         │   ├── (finance)/         # phases 7-8 : transactions, comptes, transferts, budgets, objectifs (goals), catégories
         │   ├── (workouts)/        # phase 10 : sessions (start, new, [id], [id]/finish), activities, sport-goals
+        │   ├── (body)/            # phase 11b : measurements (index, [typeId], new, entry/[id])
         │   └── (auth)/            # login, register
         ├── api/                   # phase 6 : client HTTP unique, endpoints, jetons
         ├── features/              # phases 6+ : profile/, finance/… (hooks TanStack Query, formulaires)
@@ -208,8 +209,22 @@ apps/<domaine>/
 | Dates | les séances sont stockées en UTC et affichées dans le fuseau du téléphone ; les périodes des statistiques sont calculées par le backend dans le fuseau du profil |
 | Erreurs du backend | `renameFieldErrors` relie `duration_seconds`, `distance_km`… aux champs du formulaire ; une erreur sur un champ absent (ex. `status`) devient le message général, avec son texte |
 
-**Types des routes (`.expo/types/router.d.ts`)** : ce fichier est généré par `npx expo start`. Ne pas le supprimer avant de relancer Expo : la première génération est partielle (des routes manquent et `tsc` échoue). En cas de doute, relancer `npx expo start` et attendre quelques secondes avant `npm run typecheck`.
+**Types des routes (`.expo/types/router.d.ts`)** : ce fichier est généré par `npx expo start`. Au démarrage, Expo écrit un fichier **complet** ; ensuite, à chaque fichier modifié, le serveur en cours le réécrit dans une version **incomplète** : les routes `index` n'y figurent qu'avec le suffixe `/index` (`/measurements/index`), et `tsc` refuse alors `/measurements`, `/sport-goals` ou `/sessions/[id]`. Ne pas supprimer le fichier : relancer `npx expo start` (ou arrêter le serveur), attendre quelques secondes, puis `npm run typecheck`.
 
 ### Barre de navigation (phase 11a)
 
 Icône **en contour** au repos et **pleine** sur l'onglet actif, posée sur une pastille `secondaryContainer` (Material 3). Android : `MaterialCommunityIcons` via `NativeTabs.Trigger.VectorIcon`, les mêmes icônes que le reste de l'application ; iOS : SF Symbols. Les noms sont dans `src/constants/tabs.ts`.
+
+### Statistiques et mesures corporelles (phase 11b)
+
+| Élément | Choix |
+|---|---|
+| Onglet Statistiques | revenus et dépenses des 6 derniers mois (barres groupées), répartition du mois par catégorie (anneau + légende), activité sportive (8 semaines ou 6 mois, durée ou séances), courbe d'une mesure corporelle ; tirer pour rafraîchir invalide les domaines `finance`, `workouts` et `body` |
+| Données | toutes calculées par le backend (`/finance/stats/…`, `/workouts/stats/history/`, `/body/metric-types/{id}/series/`) ; `features/stats/chart-data.ts` ne fait que convertir en nombres pour l'affichage et choisir les libellés (testable sans React) |
+| Couleurs | 5 couleurs de série en ordre fixe (`components/charts/chart-theme.ts`), vérifiées pour le daltonisme sur les surfaces claire et sombre ; « Autres » en gris neutre. Trois couleurs contrastent peu sur fond blanc : chaque graphique affiche les montants en clair (légende, panneau de détail) |
+| Interaction | toucher un mois ou une semaine affiche ses valeurs exactes ; la période en cours est sélectionnée par défaut |
+| États | chargement, erreur réseau (« Réessayer ») et absence de données gérés par `components/charts/chart-card.tsx` ; aucune valeur inventée |
+| Catégories | au-delà de 5 catégories, les plus petites sont regroupées dans « Autres (n) » (total exact au centime) |
+| Courbe d'une mesure | seules les valeurs saisies sont tracées (aucune interpolation) ; les points sont **équidistants** (un par mesure) : l'axe horizontal n'est pas proportionnel au temps. L'axe vertical ne part pas de 0 (un poids de 72 kg serait illisible) |
+| Mesures corporelles | groupe `(body)` : `/measurements` (types, dernière valeur), `/measurements/[typeId]` (courbe 6 mois + historique paginé), `/measurements/new?type=…`, `/measurements/entry/[id]` (modifier, supprimer). Une valeur par type et par jour : le refus du backend s'affiche sur le champ Date. L'unité est verrouillée dans le formulaire dès qu'une valeur existe |
+| Accessibilité | chaque graphique a une description textuelle de ses valeurs ; l'identité des séries n'est jamais portée par la couleur seule |

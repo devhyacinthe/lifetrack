@@ -154,3 +154,12 @@ export function useWorkoutStats(period: WorkoutGoalPeriod) {
     placeholderData: keepPreviousData,
   });
 }
+
+/** Historique des 8 dernières semaines ou des 6 derniers mois (graphiques). */
+export function useWorkoutHistory(period: WorkoutGoalPeriod) {
+  return useQuery({
+    queryKey: workoutKeys.list('stats', 'history', period),
+    queryFn: () => workoutsApi.getWorkoutHistory(period),
+    placeholderData: keepPreviousData,
+  });
+}

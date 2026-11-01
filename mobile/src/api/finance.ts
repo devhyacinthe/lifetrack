@@ -9,13 +9,16 @@ import type {
   BudgetPayload,
   Category,
   CategoryCreatePayload,
+  CategoryStats,
   CategoryUpdatePayload,
+  MonthlyStats,
   Paginated,
   SavingsGoal,
   SavingsGoalPayload,
   Transaction,
   TransactionFilters,
   TransactionPayload,
+  TransactionType,
   Transfer,
   TransferPayload,
 } from './types';
@@ -169,4 +172,18 @@ export function updateGoal(id: string, payload: Partial<SavingsGoalPayload>): Pr
 
 export function deleteGoal(id: string): Promise<void> {
   return apiRequest<void>(`/finance/goals/${id}/`, { method: 'DELETE' });
+}
+
+// Statistiques (calculées par le backend, dans la devise préférée par défaut)
+
+/** Revenus, dépenses et solde des `months` derniers mois, du plus ancien au plus récent. */
+export function getMonthlyStats(months: number): Promise<MonthlyStats> {
+  return apiRequest<MonthlyStats>(`/finance/stats/monthly/${toQueryString({ months })}`);
+}
+
+/** Répartition par catégorie du mois en cours. */
+export function getCategoryStats(type: TransactionType): Promise<CategoryStats> {
+  return apiRequest<CategoryStats>(
+    `/finance/stats/categories/${toQueryString({ type, period: 'monthly' })}`,
+  );
 }

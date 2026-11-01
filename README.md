@@ -2,7 +2,7 @@
 
 Application mobile personnelle de gestion financière et de suivi sportif.
 
-> **État : phase 11a (mesures corporelles et statistiques, backend).** Le backend gère l'authentification JWT, les finances (comptes, catégories, transactions, transferts, budgets, objectifs d'épargne, statistiques mensuelles et par catégorie), le sport (activités, séances en cours ou terminées, objectifs sportifs, statistiques et historique) et les mesures corporelles. L'application mobile « LifeTracker » couvre les finances et le sport ; écrans de statistiques et de mesures en phase 11b, tableau de bord en phase 12. Voir [docs/development-plan.md](docs/development-plan.md).
+> **État : phase 11b (statistiques et mesures corporelles, mobile).** Le backend gère l'authentification JWT, les finances (comptes, catégories, transactions, transferts, budgets, objectifs d'épargne, statistiques), le sport (activités, séances en cours ou terminées, objectifs, statistiques et historique) et les mesures corporelles. L'application mobile « LifeTracker » couvre les finances, le sport, les mesures corporelles et l'onglet Statistiques (graphiques) ; le tableau de bord arrive en phase 12. Voir [docs/development-plan.md](docs/development-plan.md).
 
 ## Organisation du dépôt (monorepo)
 

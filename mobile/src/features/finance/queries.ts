@@ -10,11 +10,13 @@ import type {
   SavingsGoalPayload,
   TransactionFilters,
   TransactionPayload,
+  TransactionType,
   TransferPayload,
 } from '@/api/types';
 import { createDomainKeys, useDetailQuery, useDomainMutation } from '@/lib/domain-queries';
 
-type Entity = 'accounts' | 'categories' | 'transactions' | 'transfers' | 'budgets' | 'goals';
+type Entity =
+  'accounts' | 'categories' | 'transactions' | 'transfers' | 'budgets' | 'goals' | 'stats';
 
 /** Clés de cache : ['finance', objet, 'list' | 'detail', …] (voir lib/domain-queries). */
 export const financeKeys = createDomainKeys<Entity>('finance');
@@ -211,4 +213,23 @@ export function useUpdateGoal(id: string) {
 
 export function useDeleteGoal(id: string) {
   return useFinanceMutation<void, void>('goals', () => financeApi.deleteGoal(id));
+}
+
+// --- Statistiques (6 derniers mois, mois en cours par catégorie) ---------------------------
+
+export const STATS_MONTHS = 6;
+
+export function useMonthlyStats() {
+  return useQuery({
+    queryKey: financeKeys.list('stats', 'monthly', STATS_MONTHS),
+    queryFn: () => financeApi.getMonthlyStats(STATS_MONTHS),
+  });
+}
+
+export function useCategoryStats(type: TransactionType) {
+  return useQuery({
+    queryKey: financeKeys.list('stats', 'categories', type),
+    queryFn: () => financeApi.getCategoryStats(type),
+    placeholderData: keepPreviousData,
+  });
 }

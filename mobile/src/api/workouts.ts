@@ -13,6 +13,7 @@ import type {
   WorkoutGoal,
   WorkoutGoalPayload,
   WorkoutGoalPeriod,
+  WorkoutHistory,
   WorkoutPayload,
   WorkoutStats,
 } from './types';
@@ -114,4 +115,9 @@ export function deleteWorkoutGoal(id: string): Promise<void> {
 
 export function getWorkoutStats(period: WorkoutGoalPeriod): Promise<WorkoutStats> {
   return apiRequest<WorkoutStats>(`/workouts/stats/${toQueryString({ period })}`);
+}
+
+/** Séances, durée et distance des dernières semaines (8) ou des derniers mois (6). */
+export function getWorkoutHistory(period: WorkoutGoalPeriod): Promise<WorkoutHistory> {
+  return apiRequest<WorkoutHistory>(`/workouts/stats/history/${toQueryString({ period })}`);
 }
