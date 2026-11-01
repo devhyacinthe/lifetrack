@@ -1,7 +1,15 @@
 import django_filters
 from django.db.models import Q
 
-from .models import Account, Category, PaymentMethod, Transaction, TransactionType, Transfer
+from .models import (
+    Account,
+    Budget,
+    Category,
+    PaymentMethod,
+    Transaction,
+    TransactionType,
+    Transfer,
+)
 
 # Les filtres par compte ou catégorie prennent un UUID sans vérifier qu'il existe : un
 # identifiant appartenant à un autre utilisateur donne simplement une liste vide, sans
@@ -46,3 +54,14 @@ class TransferFilter(django_filters.FilterSet):
 
     def filter_account(self, queryset, name, value):
         return queryset.filter(Q(from_account_id=value) | Q(to_account_id=value))
+
+
+class BudgetFilter(django_filters.FilterSet):
+    category = django_filters.UUIDFilter(field_name="category_id")
+    is_global = django_filters.BooleanFilter(
+        field_name="category", lookup_expr="isnull", label="Budget global (sans catégorie)"
+    )
+
+    class Meta:
+        model = Budget
+        fields = ["period", "currency"]

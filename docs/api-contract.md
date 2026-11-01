@@ -152,6 +152,45 @@ Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utili
 - Un transfert ne crée ni revenu ni dépense : il modifie seulement les soldes des deux comptes.
 - Filtres : `account` (compte débité **ou** crédité), `date_after`, `date_before`. Recherche : `search`. Tri : `ordering=date|amount|created_at`.
 
+### Budgets : `/api/v1/finance/budgets/` (phase 8a)
+
+```json
+{
+  "id": "uuid", "category": "uuid", "category_name": "Alimentation",
+  "amount": "60000.00", "currency": "XOF", "period": "monthly",
+  "period_start": "2026-11-01", "period_end": "2026-11-30",
+  "spent": "12500.00", "remaining": "47500.00", "percent_used": "20.8",
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Obligatoires : `amount` (≥ `0.01`), `period` (`weekly`, `monthly`, `yearly`). Facultatifs : `category` (`null` ou absent = **budget global**), `currency` (devise préférée par défaut).
+- `category` : catégorie de **dépenses**, active pour un nouveau budget.
+- Un seul budget par catégorie (ou global), période et devise : sinon 400 sur `category`.
+- `period_start`, `period_end`, `spent`, `remaining`, `percent_used` : **lecture seule, calculés** pour la période qui contient la date de référence. `remaining` peut être négatif, et `percent_used` dépasser 100.
+- Paramètre `date=YYYY-MM-DD` (liste, détail, et aussi réponses de `POST`/`PATCH`) : date de référence. Par défaut, aujourd'hui dans le fuseau de l'utilisateur. Une date invalide renvoie 400 sur `date`.
+- Filtres : `period`, `currency`, `category`, `is_global`. Tri : `ordering=period|amount|created_at`.
+- Supprimer un budget ne supprime aucune transaction. Une catégorie utilisée par un budget ne peut pas être supprimée (**409**).
+
+### Objectifs d'épargne : `/api/v1/finance/goals/` (phase 8a)
+
+```json
+{
+  "id": "uuid", "name": "Moto", "account": "uuid", "account_name": "Épargne",
+  "currency": "XOF", "target_amount": "500000.00", "deadline": "2027-06-30",
+  "current_amount": "125000.00", "remaining_amount": "375000.00",
+  "percent": "25.0", "is_reached": false,
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Obligatoires : `name`, `account`, `target_amount` (≥ `0.01`). Facultatif : `deadline` (pas dans le passé).
+- `account` : compte de l'utilisateur, non archivé, **qui n'est rattaché à aucun autre objectif**.
+- `current_amount` : **solde du compte** (lecture seule). `remaining_amount` ≥ 0, `percent` entre 0 et 100, `is_reached` vrai quand la cible est atteinte.
+- Pour faire progresser un objectif, on fait un **transfert** vers son compte : il n'y a pas de versement propre à l'objectif, donc aucun double comptage.
+- Recherche : `search` (nom). Tri : `ordering=name|deadline|target_amount|created_at`.
+- Un compte rattaché à un objectif ne peut pas être supprimé (**409**) ; supprimer l'objectif ne touche pas au compte.
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.

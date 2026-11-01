@@ -210,3 +210,100 @@ class Transfer(TimeStampedModel):
             raise ValidationError(
                 {"to_account": "Les transferts entre devises différentes ne sont pas gérés."}
             )
+
+
+class BudgetPeriod(models.TextChoices):
+    WEEKLY = "weekly", "Hebdomadaire"
+    MONTHLY = "monthly", "Mensuel"
+    YEARLY = "yearly", "Annuel"
+
+
+class Budget(TimeStampedModel):
+    """
+    Plafond de dépenses récurrent, global (sans catégorie) ou limité à une catégorie.
+
+    Rien n'est stocké pour une période donnée : la consommation est recalculée à partir des
+    dépenses enregistrées (voir selectors.attach_budget_usage).
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="budgets"
+    )
+    # Vide : budget global, toutes catégories de dépenses confondues.
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.RESTRICT,
+        null=True,
+        blank=True,
+        related_name="budgets",
+        verbose_name="catégorie",
+    )
+    amount = amount_field("montant")
+    # Seules les dépenses des comptes de cette devise sont comptées.
+    currency = models.CharField("devise", max_length=3, validators=[currency_validator])
+    period = models.CharField("période", max_length=10, choices=BudgetPeriod.choices)
+
+    class Meta:
+        verbose_name = "budget"
+        ordering = ["period", "created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(amount__gt=0), name="finance_budget_amount_positive"
+            ),
+            models.CheckConstraint(
+                condition=Q(period__in=BudgetPeriod.values), name="finance_budget_period_valid"
+            ),
+            # Unicité des budgets par catégorie. Les budgets globaux (catégorie NULL) sont
+            # vérifiés par le serializer : MariaDB ne gère pas les contraintes conditionnelles.
+            models.UniqueConstraint(
+                fields=["user", "category", "period", "currency"],
+                name="finance_budget_unique",
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.category.name if self.category_id else "Global"
+        return f"{scope} : {self.amount} {self.currency} ({self.get_period_display()})"
+
+    def clean(self):
+        if not self.category_id:
+            return
+        if self.category.user_id != self.user_id:
+            raise ValidationError({"category": "Catégorie introuvable."})
+        if self.category.type != TransactionType.EXPENSE:
+            raise ValidationError({"category": "Un budget porte sur une catégorie de dépenses."})
+
+
+class SavingsGoal(TimeStampedModel):
+    """
+    Objectif d'épargne rattaché à un compte : sa progression est le solde de ce compte.
+
+    Un compte ne sert qu'à un seul objectif, ce qui évite de compter deux fois le même argent.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="savings_goals"
+    )
+    name = models.CharField("nom", max_length=100)
+    account = models.OneToOneField(
+        Account, on_delete=models.RESTRICT, related_name="savings_goal", verbose_name="compte"
+    )
+    target_amount = amount_field("montant cible")
+    deadline = models.DateField("échéance", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "objectif d'épargne"
+        verbose_name_plural = "objectifs d'épargne"
+        ordering = ["created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(target_amount__gt=0), name="finance_goal_target_positive"
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        if self.account_id and self.account.user_id != self.user_id:
+            raise ValidationError({"account": "Compte introuvable."})

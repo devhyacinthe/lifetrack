@@ -8,11 +8,19 @@ from .models import (
     AMOUNT_DECIMAL_PLACES,
     AMOUNT_MAX_DIGITS,
     Account,
+    Budget,
     Category,
+    SavingsGoal,
     Transaction,
     Transfer,
 )
-from .selectors import account_balance, account_has_operations
+from .selectors import (
+    account_balance,
+    account_has_operations,
+    attach_budget_usage,
+    goal_progress,
+    user_today,
+)
 
 MIN_AMOUNT = Decimal("0.01")
 
@@ -236,3 +244,178 @@ class TransferSerializer(ModelCleanMixin, serializers.ModelSerializer):
 
     def create(self, validated_data):
         return services.create_transfer(self.context["request"].user, **validated_data)
+
+
+# --- Budgets ------------------------------------------------------------------------
+
+
+class BudgetListSerializer(serializers.ListSerializer):
+    """Calcule la consommation de toute la page en quelques requêtes (voir selectors)."""
+
+    def to_representation(self, data):
+        budgets = attach_budget_usage(
+            data.all() if hasattr(data, "all") else data,
+            self.context["request"].user,
+            self.context["reference_date"],
+        )
+        return super().to_representation(budgets)
+
+
+class BudgetSerializer(ModelCleanMixin, serializers.ModelSerializer):
+    amount = amount_field(min_value=MIN_AMOUNT)
+    category = OwnedPrimaryKeyRelatedField(
+        queryset=Category.objects.all(), required=False, allow_null=True
+    )
+    category_name = serializers.CharField(source="category.name", read_only=True, allow_null=True)
+    currency = serializers.CharField(max_length=3, required=False)
+    # Consommation de la période contenant la date de référence (calculée, jamais stockée).
+    period_start = serializers.DateField(source="usage.period_start", read_only=True)
+    period_end = serializers.DateField(source="usage.period_end", read_only=True)
+    spent = amount_field(source="usage.spent", read_only=True)
+    remaining = amount_field(source="usage.remaining", read_only=True)
+    percent_used = serializers.DecimalField(
+        source="usage.percent_used", max_digits=20, decimal_places=1, read_only=True
+    )
+
+    class Meta:
+        model = Budget
+        list_serializer_class = BudgetListSerializer
+        fields = [
+            "id",
+            "category",
+            "category_name",
+            "amount",
+            "currency",
+            "period",
+            "period_start",
+            "period_end",
+            "spent",
+            "remaining",
+            "percent_used",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_currency(self, value):
+        Budget._meta.get_field("currency").run_validators(value)
+        return value
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        category = attrs.get("category")
+        if (
+            category
+            and not category.is_active
+            and category != getattr(self.instance, "category", None)
+        ):
+            raise serializers.ValidationError({"category": "Cette catégorie est désactivée."})
+
+        candidate = Budget(user=user, currency=user.preferred_currency)
+        if self.instance:
+            for field in ["category", "currency", "period"]:
+                setattr(candidate, field, getattr(self.instance, field))
+        for field, value in attrs.items():
+            setattr(candidate, field, value)
+        self.run_model_clean(candidate)
+
+        # Un seul budget par catégorie (ou global), période et devise.
+        duplicates = Budget.objects.filter(
+            user=user,
+            category=candidate.category,
+            period=candidate.period,
+            currency=candidate.currency,
+        )
+        if self.instance:
+            duplicates = duplicates.exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise serializers.ValidationError(
+                {"category": "Un budget existe déjà pour cette catégorie, période et devise."}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        validated_data.setdefault("currency", user.preferred_currency)
+        return Budget.objects.create(user=user, **validated_data)
+
+    def update(self, instance, validated_data):
+        budget = super().update(instance, validated_data)
+        # Montant, catégorie ou période modifiés : la consommation est recalculée.
+        budget.__dict__.pop("usage", None)
+        return budget
+
+    def to_representation(self, instance):
+        # Détail, création ou modification : la consommation est calculée ici.
+        if not hasattr(instance, "usage"):
+            attach_budget_usage(
+                [instance], self.context["request"].user, self.context["reference_date"]
+            )
+        return super().to_representation(instance)
+
+
+# --- Objectifs d'épargne -------------------------------------------------------------
+
+
+class SavingsGoalSerializer(serializers.ModelSerializer):
+    account = OwnedPrimaryKeyRelatedField(queryset=Account.objects.all())
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    currency = serializers.CharField(source="account.currency", read_only=True)
+    target_amount = amount_field(min_value=MIN_AMOUNT)
+    # Progression calculée à partir du solde du compte (jamais stockée).
+    current_amount = amount_field(read_only=True)
+    remaining_amount = amount_field(read_only=True)
+    percent = serializers.DecimalField(max_digits=4, decimal_places=1, read_only=True)
+    is_reached = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = SavingsGoal
+        fields = [
+            "id",
+            "name",
+            "account",
+            "account_name",
+            "currency",
+            "target_amount",
+            "deadline",
+            "current_amount",
+            "remaining_amount",
+            "percent",
+            "is_reached",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_account(self, account):
+        if account == getattr(self.instance, "account", None):
+            return account
+        if account.is_archived:
+            raise serializers.ValidationError("Ce compte est archivé.")
+        if SavingsGoal.objects.filter(account=account).exists():
+            raise serializers.ValidationError("Ce compte est déjà rattaché à un objectif.")
+        return account
+
+    def validate_deadline(self, value):
+        unchanged = value == getattr(self.instance, "deadline", None)
+        if value and not unchanged and value < user_today(self.context["request"].user):
+            raise serializers.ValidationError("L'échéance ne peut pas être dans le passé.")
+        return value
+
+    def create(self, validated_data):
+        return SavingsGoal.objects.create(user=self.context["request"].user, **validated_data)
+
+    def update(self, instance, validated_data):
+        goal = super().update(instance, validated_data)
+        # Le solde annoté peut être celui de l'ancien compte : il est recalculé.
+        goal.__dict__.pop("current_amount", None)
+        return goal
+
+    def to_representation(self, instance):
+        if not hasattr(instance, "current_amount"):
+            instance.current_amount = account_balance(instance.account)
+        remaining, percent = goal_progress(instance)
+        instance.remaining_amount = remaining
+        instance.percent = percent
+        instance.is_reached = remaining == 0
+        return super().to_representation(instance)

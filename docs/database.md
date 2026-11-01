@@ -143,3 +143,53 @@ solde = solde initial + revenus − dépenses + transferts reçus − transferts
 | Compte et catégorie du même utilisateur, catégorie du bon type, même devise pour un transfert | `clean()` des modèles, appelé par `finance.services` avant toute écriture |
 
 **Données initiales :** chaque nouvel utilisateur reçoit 11 catégories de dépenses, 6 de revenus et un compte « Espèces » dans sa devise préférée. Ces données sont créées par un signal `post_save` (`finance/signals.py`) ; la liste est dans `finance/defaults.py`. Les utilisateurs créés avant la phase 3 les ont reçues via la migration `finance.0002`.
+
+### 5.4 Budgets et objectifs d'épargne (phase 8a)
+
+Migration `finance.0003_budgets_and_savings_goals`.
+
+**`finance.Budget`** : plafond de dépenses récurrent
+
+| Champ | Règles |
+|---|---|
+| `category` | facultative : vide = **budget global** (toutes les dépenses) ; sinon catégorie de **dépenses** du même utilisateur ; `RESTRICT` |
+| `amount` | Decimal(15,2), strictement positif (contrainte en base) |
+| `currency` | ISO 4217, devise préférée par défaut ; seules les dépenses des comptes de cette devise sont comptées |
+| `period` | `weekly`, `monthly` ou `yearly` (contrainte en base) |
+
+Unicité : un budget par (catégorie, période, devise). Pour les budgets par catégorie, la contrainte est en base. Pour les budgets globaux (catégorie `NULL`), elle est vérifiée par le serializer : MariaDB ne gère pas les contraintes d'unicité conditionnelles, et deux `NULL` y sont toujours considérés comme différents.
+
+**Périodes** (`finance.selectors.period_bounds`), bornes incluses :
+
+| Période | Début | Fin |
+|---|---|---|
+| `weekly` | lundi (semaine ISO 8601) | dimanche |
+| `monthly` | 1er du mois | dernier jour du mois (28 à 31, années bissextiles comprises) |
+| `yearly` | 1er janvier | 31 décembre |
+
+La période en cours est celle qui contient la date du jour **dans le fuseau horaire de l'utilisateur** (`users.User.timezone`). Les périodes passées se consultent avec une date de référence.
+
+**Consommation**, calculée et jamais stockée (`finance.selectors.attach_budget_usage`) :
+
+```
+dépensé = somme des dépenses de la période (catégorie du budget, ou toutes), sur les comptes de la devise du budget
+restant = montant − dépensé        (négatif en cas de dépassement)
+pourcentage = dépensé × 100 / montant   (arrondi à 0,1 ; peut dépasser 100)
+```
+
+Les revenus et les transferts ne sont jamais comptés. Une seule requête SQL est faite par type de période présent, quel que soit le nombre de budgets.
+
+**`finance.SavingsGoal`** : objectif d'épargne
+
+| Champ | Règles |
+|---|---|
+| `name` | 100 caractères |
+| `account` | compte du même utilisateur, **un seul objectif par compte** (`OneToOne`, contrainte en base) ; `RESTRICT` |
+| `target_amount` | Decimal(15,2), strictement positif (contrainte en base) |
+| `deadline` | facultative ; ne peut pas être fixée dans le passé (une échéance passée déjà enregistrée reste modifiable) |
+
+**Progression** (`finance.selectors.goals_with_progress`) : le montant actuel est **le solde du compte**, calculé avec la même formule que les comptes, en une seule requête. Le montant restant n'est jamais négatif et le pourcentage est borné entre 0 et 100.
+
+**Pas de double comptage :** un objectif ne stocke aucun versement. L'argent n'existe qu'une fois, dans le solde d'un compte, et un compte ne sert qu'à un seul objectif. Pour épargner, on fait un **transfert** vers le compte de l'objectif : ce n'est ni une dépense ni un revenu.
+
+**Suppression :** une catégorie utilisée par un budget, ou un compte rattaché à un objectif, ne peut pas être supprimé (409). Supprimer un budget ou un objectif ne touche ni les transactions ni le compte.

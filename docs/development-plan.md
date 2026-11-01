@@ -4,6 +4,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 
 **Choix de l'utilisateur (phase 5) :** les tests de l'application mobile (Jest, `expo-doctor`) sont écrits au fil des phases mais **exécutés en fin de projet (phase 13)**, et il n'y a pas d'intégration continue pour le mobile. Le backend garde sa CI (`.github/workflows/backend.yml`).
 
+**Choix de l'utilisateur (phase 8) :** budgets **récurrents** (hebdomadaires, mensuels ou annuels) ; objectifs d'épargne **rattachés à un compte**, dont la progression est le solde (pas de versements propres à l'objectif) ; phase découpée en **8a** (backend) puis **8b** (mobile).
+
 ## Suivi des phases
 
 | Phase | Périmètre | Statut |
@@ -17,7 +19,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 5 | Initialisation Expo et navigation | ✅ validée par l'utilisateur ; TypeScript, ESLint et Prettier OK ; ⚠️ **tests Jest et `expo-doctor` pas encore exécutés** (reportés en fin de projet, phase 13, à la demande de l'utilisateur) |
 | 6 | Connexion du frontend à l'API | ✅ terminée (30/10/2026) : TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours d'authentification et nouveau design validés par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
 | 7 | Interfaces financières | ✅ terminée (01/11/2026) : liste des transactions (recherche, filtres, tri, pagination), création, modification, suppression, gestion des catégories ; TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours validé par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
-| 8 | Budgets, comptes et objectifs financiers | à faire |
+| 8a | Budgets et objectifs d'épargne : backend | 🔄 développée : modèles, migration `0003`, API, 52 nouveaux tests (260 réussis, 1 ignoré, en local sur SQLite) ; schéma OpenAPI valide ; CI MariaDB et déploiement o2switch à faire par l'utilisateur |
+| 8b | Comptes, transferts, budgets et objectifs : écrans mobiles | à faire |
 | 9 | Module sportif backend | à faire |
 | 10 | Interfaces sportives | à faire |
 | 11 | Mesures corporelles et statistiques | à faire |

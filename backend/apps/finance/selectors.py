@@ -1,14 +1,21 @@
 """Lectures et calculs financiers (sans écriture)."""
 
-from decimal import Decimal
+import calendar
+import datetime
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from zoneinfo import ZoneInfo
 
 from django.db.models import DecimalField, F, OuterRef, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from .models import (
     AMOUNT_DECIMAL_PLACES,
     AMOUNT_MAX_DIGITS,
     Account,
+    BudgetPeriod,
+    SavingsGoal,
     Transaction,
     TransactionType,
     Transfer,
@@ -40,10 +47,10 @@ def account_balance(account):
     return account.initial_balance + incomes - expenses + transfers_in - transfers_out
 
 
-def _summed_per_account(queryset, account_field):
-    """Somme des montants de queryset pour le compte de la requête englobante."""
+def _summed_per_account(queryset, account_field, outer_ref):
+    """Somme des montants de queryset pour le compte désigné par outer_ref (requête englobante)."""
     totals = (
-        queryset.filter(**{account_field: OuterRef("pk")})
+        queryset.filter(**{account_field: OuterRef(outer_ref)})
         .order_by()
         .values(account_field)
         .annotate(total=Sum("amount"))
@@ -52,19 +59,30 @@ def _summed_per_account(queryset, account_field):
     return Coalesce(Subquery(totals), Value(ZERO), output_field=_amount_field())
 
 
-def accounts_with_balance(user):
+def _balance_expression(account_path=""):
     """
-    Comptes de l'utilisateur annotés de leur solde, en une seule requête SQL.
+    Expression SQL du solde du compte atteint par account_path (vide : le modèle Account).
 
     Même formule que account_balance() ; les deux sont comparées dans les tests.
     """
-    return Account.objects.filter(user=user).annotate(
-        balance=F("initial_balance")
-        + _summed_per_account(Transaction.objects.filter(type=TransactionType.INCOME), "account")
-        - _summed_per_account(Transaction.objects.filter(type=TransactionType.EXPENSE), "account")
-        + _summed_per_account(Transfer.objects.all(), "to_account")
-        - _summed_per_account(Transfer.objects.all(), "from_account")
+    prefix = f"{account_path}__" if account_path else ""
+    outer_ref = account_path or "pk"
+    return (
+        F(f"{prefix}initial_balance")
+        + _summed_per_account(
+            Transaction.objects.filter(type=TransactionType.INCOME), "account", outer_ref
+        )
+        - _summed_per_account(
+            Transaction.objects.filter(type=TransactionType.EXPENSE), "account", outer_ref
+        )
+        + _summed_per_account(Transfer.objects.all(), "to_account", outer_ref)
+        - _summed_per_account(Transfer.objects.all(), "from_account", outer_ref)
     )
+
+
+def accounts_with_balance(user):
+    """Comptes de l'utilisateur annotés de leur solde, en une seule requête SQL."""
+    return Account.objects.filter(user=user).annotate(balance=_balance_expression())
 
 
 def account_has_operations(account):
@@ -73,3 +91,106 @@ def account_has_operations(account):
         or account.transfers_in.exists()
         or account.transfers_out.exists()
     )
+
+
+# --- Budgets ------------------------------------------------------------------------
+
+
+def period_bounds(period, reference_date):
+    """
+    Bornes incluses de la période contenant reference_date.
+
+    Semaine : du lundi au dimanche (ISO 8601). Mois et année : calendaires.
+    """
+    if period == BudgetPeriod.WEEKLY:
+        start = reference_date - datetime.timedelta(days=reference_date.weekday())
+        return start, start + datetime.timedelta(days=6)
+    if period == BudgetPeriod.MONTHLY:
+        start = reference_date.replace(day=1)
+        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
+        return start, reference_date.replace(day=last_day)
+    if period == BudgetPeriod.YEARLY:
+        return datetime.date(reference_date.year, 1, 1), datetime.date(reference_date.year, 12, 31)
+    raise ValueError(f"Période inconnue : {period}")
+
+
+@dataclass(frozen=True)
+class BudgetUsage:
+    period_start: datetime.date
+    period_end: datetime.date
+    spent: Decimal
+    remaining: Decimal
+    percent_used: Decimal
+
+
+def _percent(part, whole):
+    return (part * 100 / whole).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+
+
+def attach_budget_usage(budgets, user, reference_date):
+    """
+    Calcule la consommation de chaque budget pour la période contenant reference_date,
+    et l'attache à l'attribut `usage`.
+
+    Dépenses comptées : celles de l'utilisateur, datées dans la période, sur un compte de la
+    devise du budget, et de la catégorie du budget (toutes pour un budget global). Les
+    revenus et les transferts ne sont jamais comptés.
+
+    Une seule requête SQL par type de période présent, quel que soit le nombre de budgets.
+    """
+    budgets = list(budgets)
+    totals_by_period = {}
+    for period in {budget.period for budget in budgets}:
+        start, end = period_bounds(period, reference_date)
+        rows = (
+            Transaction.objects.filter(
+                user=user, type=TransactionType.EXPENSE, date__gte=start, date__lte=end
+            )
+            .order_by()
+            .values("category_id", "account__currency")
+            .annotate(total=Sum("amount"))
+        )
+        totals = {}
+        for row in rows:
+            currency = row["account__currency"]
+            # Clé (catégorie, devise) pour un budget par catégorie, (None, devise) pour un global.
+            for key in [(row["category_id"], currency), (None, currency)]:
+                totals[key] = totals.get(key, ZERO) + row["total"]
+        totals_by_period[period] = (start, end, totals)
+
+    for budget in budgets:
+        start, end, totals = totals_by_period[budget.period]
+        spent = totals.get((budget.category_id, budget.currency), ZERO)
+        budget.usage = BudgetUsage(
+            period_start=start,
+            period_end=end,
+            spent=spent,
+            remaining=budget.amount - spent,
+            percent_used=_percent(spent, budget.amount),
+        )
+    return budgets
+
+
+# --- Objectifs d'épargne ------------------------------------------------------------
+
+
+def goals_with_progress(user):
+    """Objectifs annotés du solde actuel de leur compte (current_amount), en une requête."""
+    return (
+        SavingsGoal.objects.filter(user=user)
+        .select_related("account")
+        .annotate(current_amount=_balance_expression("account"))
+    )
+
+
+def goal_progress(goal):
+    """Montant restant (jamais négatif) et pourcentage atteint (borné entre 0 et 100)."""
+    current = goal.current_amount
+    remaining = max(goal.target_amount - current, ZERO)
+    percent = min(max(_percent(current, goal.target_amount), ZERO), Decimal("100.0"))
+    return remaining, percent
+
+
+def user_today(user):
+    """Date du jour dans le fuseau horaire de l'utilisateur."""
+    return timezone.localdate(timezone=ZoneInfo(user.timezone))

@@ -1,15 +1,29 @@
 from django.db.models import RestrictedError
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
-from rest_framework import filters, status, viewsets
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
+from rest_framework import filters, serializers, status, viewsets
 from rest_framework.response import Response
 
-from .filters import AccountFilter, CategoryFilter, TransactionFilter, TransferFilter
-from .models import Account, Category, Transaction, Transfer
-from .selectors import accounts_with_balance
+from .filters import (
+    AccountFilter,
+    BudgetFilter,
+    CategoryFilter,
+    TransactionFilter,
+    TransferFilter,
+)
+from .models import Account, Budget, Category, SavingsGoal, Transaction, Transfer
+from .selectors import accounts_with_balance, goals_with_progress, user_today
 from .serializers import (
     AccountSerializer,
+    BudgetSerializer,
     CategorySerializer,
+    SavingsGoalSerializer,
     TransactionSerializer,
     TransferSerializer,
 )
@@ -54,7 +68,10 @@ class AccountViewSet(UserOwnedViewSet):
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
-    restricted_message = "Ce compte a des opérations : archivez-le au lieu de le supprimer."
+    restricted_message = (
+        "Ce compte est utilisé par des opérations ou un objectif d'épargne : "
+        "archivez-le au lieu de le supprimer."
+    )
 
     def get_user_queryset(self, user):
         return accounts_with_balance(user)
@@ -70,7 +87,8 @@ class CategoryViewSet(UserOwnedViewSet):
     ordering_fields = ["name", "type", "created_at"]
     ordering = ["type", "name"]
     restricted_message = (
-        "Cette catégorie est utilisée par des transactions : désactivez-la au lieu de la supprimer."
+        "Cette catégorie est utilisée par des transactions ou un budget : "
+        "désactivez-la au lieu de la supprimer."
     )
 
     def get_user_queryset(self, user):
@@ -101,3 +119,55 @@ class TransferViewSet(UserOwnedViewSet):
 
     def get_user_queryset(self, user):
         return Transfer.objects.filter(user=user).select_related("from_account", "to_account")
+
+
+REFERENCE_DATE_PARAMETER = OpenApiParameter(
+    "date",
+    type=OpenApiTypes.DATE,
+    description=(
+        "Date de référence (YYYY-MM-DD) : la consommation est calculée pour la période qui "
+        "la contient. Par défaut, aujourd'hui dans le fuseau de l'utilisateur."
+    ),
+)
+
+
+@extend_schema_view(
+    list=extend_schema(parameters=[REFERENCE_DATE_PARAMETER]),
+    retrieve=extend_schema(parameters=[REFERENCE_DATE_PARAMETER]),
+)
+@extend_schema(tags=["finance"])
+class BudgetViewSet(UserOwnedViewSet):
+    model = Budget
+    serializer_class = BudgetSerializer
+    filterset_class = BudgetFilter
+    ordering_fields = ["period", "amount", "created_at"]
+    ordering = ["period", "created_at"]
+
+    def get_user_queryset(self, user):
+        return Budget.objects.filter(user=user).select_related("category")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if getattr(self, "swagger_fake_view", False) or not self.request:
+            return context
+        raw = self.request.query_params.get("date")
+        if not raw:
+            context["reference_date"] = user_today(self.request.user)
+            return context
+        try:
+            context["reference_date"] = serializers.DateField().run_validation(raw)
+        except serializers.ValidationError as exc:
+            raise serializers.ValidationError({"date": exc.detail}) from exc
+        return context
+
+
+@extend_schema(tags=["finance"])
+class SavingsGoalViewSet(UserOwnedViewSet):
+    model = SavingsGoal
+    serializer_class = SavingsGoalSerializer
+    search_fields = ["name"]
+    ordering_fields = ["name", "deadline", "target_amount", "created_at"]
+    ordering = ["created_at"]
+
+    def get_user_queryset(self, user):
+        return goals_with_progress(user)

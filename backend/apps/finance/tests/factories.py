@@ -6,7 +6,10 @@ import factory
 from apps.finance.models import (
     Account,
     AccountType,
+    Budget,
+    BudgetPeriod,
     Category,
+    SavingsGoal,
     Transaction,
     TransactionType,
     Transfer,
@@ -57,3 +60,26 @@ class TransferFactory(factory.django.DjangoModelFactory):
     to_account = factory.SubFactory(AccountFactory, user=factory.SelfAttribute("..user"))
     amount = Decimal("1000")
     date = datetime.date(2026, 10, 15)
+
+
+class BudgetFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Budget
+
+    user = factory.SubFactory(UserFactory)
+    category = factory.SubFactory(CategoryFactory, user=factory.SelfAttribute("..user"))
+    amount = Decimal("50000")
+    currency = "XOF"
+    period = BudgetPeriod.MONTHLY
+
+
+class SavingsGoalFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = SavingsGoal
+
+    user = factory.SubFactory(UserFactory)
+    name = factory.Sequence(lambda n: f"Objectif {n}")
+    account = factory.SubFactory(
+        AccountFactory, user=factory.SelfAttribute("..user"), type=AccountType.SAVINGS
+    )
+    target_amount = Decimal("100000")
