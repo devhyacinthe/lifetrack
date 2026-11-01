@@ -275,3 +275,7 @@ Aucune table : tout est recalculé depuis les données persistées.
 - `core.periods.period_sequence` donne les N dernières semaines ou les N derniers mois ; `shift_months` décale d'un nombre de mois.
 - Finances (`finance/selectors.py`) : `monthly_totals` (une requête groupée par année, mois et type) et `category_totals`, pour **une seule devise** ; les transferts sont exclus.
 - Sport (`workouts/selectors.py`) : `workout_history` lit les séances terminées de toute la plage en une requête et les range par date locale.
+
+### 5.8 Tableau de bord (phase 12a)
+
+Application `dashboard`, **sans modèle ni migration** : `dashboard/selectors.py` assemble les calculs existants (`finance.selectors.monthly_totals`, `accounts_with_balance`, `attach_budget_usage`, `workouts.selectors.workout_stats`, `attach_goal_progress`). Le solde estimé additionne les comptes non archivés, devise par devise.

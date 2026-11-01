@@ -81,7 +81,7 @@ lifetrack/
 │       ├── finance/               # phases 3-4, 8
 │       ├── workouts/              # phase 9
 │       ├── body_metrics/          # phase 11a : types de mesure, mesures, séries
-│       └── dashboard/             # phase 12
+│       └── dashboard/             # phase 12a : GET /dashboard/ (aucun modèle)
 └── mobile/                        # application « LifeTracker » (Expo SDK 58)
     ├── app.json                   # nom, icônes, écran de démarrage
     ├── assets/images/             # icônes générées par tools/make_icons.py

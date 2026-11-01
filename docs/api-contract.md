@@ -353,6 +353,34 @@ Les montants de devises différentes ne s'additionnent pas : `currency` (par dé
 - Du premier jour du mois situé `months − 1` mois avant `date` jusqu'à `date`. `months` : 1 à 60, 6 par défaut.
 - **Seules les valeurs enregistrées** : aucune interpolation. Sans mesure : `points` vide et résumé à `null`.
 
+## 3 septies. Tableau de bord (phase 12a)
+
+### `GET /api/v1/dashboard/?date=2026-10-15`
+
+```json
+{
+  "reference_date": "2026-10-15", "period_start": "2026-10-01", "period_end": "2026-10-31",
+  "currency": "XOF",
+  "finance": {
+    "income": "300000.00", "expense": "45000.00", "net": "255000.00",
+    "balance": "370000.00", "accounts_count": 3,
+    "other_currencies": [ { "currency": "EUR", "balance": "150.00", "accounts_count": 1 } ]
+  },
+  "budgets": [ "… comme GET /finance/budgets/ (spent, remaining, percent_used…)" ],
+  "workouts": { "period": "monthly", "sessions_count": 2, "total_duration_seconds": 5400, "…": "comme GET /workouts/stats/" },
+  "ongoing_session": null,
+  "workout_goals": [ "… comme GET /workouts/goals/ (current_value, percent, is_reached…)" ],
+  "latest_transactions": [ "… 5 au plus, comme GET /finance/transactions/" ],
+  "latest_sessions": [ "… 5 séances terminées au plus, comme GET /workouts/sessions/" ]
+}
+```
+
+- Période : **mois calendaire** contenant `date` (aujourd'hui par défaut, fuseau de l'utilisateur). Budgets et objectifs sportifs gardent leur propre période.
+- `finance` : revenus, dépenses et solde du mois dans la **devise préférée** (transferts exclus). `balance` = somme des soldes des **comptes non archivés** de cette devise ; les comptes actifs d'autres devises sont dans `other_currencies`, jamais additionnés.
+- `ongoing_session` : séance en cours, ou `null`.
+- Les objets des listes ont **exactement les champs** des endpoints détaillés.
+- Utilisateur sans données : zéros et listes vides, aucune valeur inventée. Nombre de requêtes SQL constant (13, authentification comprise).
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.

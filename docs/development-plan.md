@@ -10,6 +10,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 
 **Choix de l'utilisateur (phase 11) :** types de mesure **extensibles** (5 types initiaux) ; **une valeur par type et par jour** ; graphiques sur **6 mois** (finances, mesures) et **8 semaines** (sport) ; phase découpée en **11a** (backend) puis **11b** (mobile).
 
+**Choix de l'utilisateur (phase 12) :** indicateurs du **mois en cours** ; solde estimé = comptes **non archivés** dans la devise préférée (autres devises affichées à part) ; phase découpée en **12a** (backend) puis **12b** (mobile).
+
 ## Suivi des phases
 
 | Phase | Périmètre | Statut |
@@ -28,8 +30,9 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 9 | Module sportif backend | ✅ terminée (01/11/2026) : application `workouts` (activités, séances, objectifs, statistiques), migrations `0001` et `0002`, 55 nouveaux tests (315 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger confirmés par l'utilisateur (sorties non transmises) |
 | 10 | Interfaces sportives | ✅ terminée (01/11/2026), commitée par l'utilisateur : onglet Sport (résumé, séance en cours, objectifs, historique), séances (démarrer, terminer par glissement, séance passée, modifier, supprimer), activités, objectifs sportifs ; backend : statut des séances (migration `workouts.0003`, action `finish`, 15 nouveaux tests, 330 réussis) ; mobile : ESLint, Prettier OK, TypeScript OK avec un fichier de routes complet ; tests Jest écrits, non exécutés (phase 13) |
 | 11a | Mesures corporelles et statistiques : backend | ✅ terminée (01/11/2026) : application `body_metrics` (types extensibles, mesures, séries), statistiques financières (totaux mensuels, par catégorie) et historique sportif ; 46 nouveaux tests (376 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger confirmés par l'utilisateur (sorties non transmises) |
-| 11b | Mesures corporelles et statistiques : écrans mobiles | 🔄 développée : onglet Statistiques (revenus et dépenses sur 6 mois, répartition par catégorie, activité sportive sur 8 semaines ou 6 mois, courbe d'une mesure), écrans des mesures corporelles (types, courbe, historique, ajout, modification, suppression), icônes de la barre du bas ; `react-native-gifted-charts` installée ; TypeScript, ESLint, Prettier OK ; tests Jest écrits, non exécutés (phase 13) ; essai sur téléphone à faire |
-| 12 | Tableau de bord global | à faire |
+| 11b | Mesures corporelles et statistiques : écrans mobiles | ✅ terminée (01/11/2026), validée et commitée par l'utilisateur : onglet Statistiques (revenus et dépenses sur 6 mois, répartition par catégorie, activité sportive sur 8 semaines ou 6 mois, courbe d'une mesure), écrans des mesures corporelles (types, courbe, historique, ajout, modification, suppression), icônes de la barre du bas ; `react-native-gifted-charts` installée ; TypeScript, ESLint, Prettier OK ; tests Jest écrits, non exécutés (phase 13) |
+| 12a | Tableau de bord : backend | 🔄 développée : application `dashboard`, `GET /api/v1/dashboard/` (mois en cours, solde des comptes actifs, budgets, séances, objectifs, dernières opérations) ; 11 nouveaux tests (387 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger à faire |
+| 12b | Tableau de bord : écran d'accueil | à faire |
 | 13 | Tests d'intégration et de bout en bout | à faire |
 | 14 | Sécurité, sauvegardes et préparation au déploiement | à faire |
 

@@ -12,6 +12,7 @@ api_v1_patterns = [
     path("finance/", include("apps.finance.urls")),
     path("workouts/", include("apps.workouts.urls")),
     path("body/", include("apps.body_metrics.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),
 ]
 
 urlpatterns = [
