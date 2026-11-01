@@ -1,11 +1,4 @@
-import {
-  keepPreviousData,
-  type QueryKey,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
 import * as financeApi from '@/api/finance';
 import type {
@@ -19,59 +12,24 @@ import type {
   TransactionPayload,
   TransferPayload,
 } from '@/api/types';
+import { createDomainKeys, useDetailQuery, useDomainMutation } from '@/lib/domain-queries';
 
 type Entity = 'accounts' | 'categories' | 'transactions' | 'transfers' | 'budgets' | 'goals';
 
-/** Clés de cache : ['finance', objet, 'list' | 'detail', …]. */
-export const financeKeys = {
-  all: ['finance'] as const,
-  list: (entity: Entity, ...params: unknown[]) => ['finance', entity, 'list', ...params] as const,
-  detail: (entity: Entity, id: string) => ['finance', entity, 'detail', id] as const,
-};
+/** Clés de cache : ['finance', objet, 'list' | 'detail', …] (voir lib/domain-queries). */
+export const financeKeys = createDomainKeys<Entity>('finance');
 
-const isDetailKey = (key: QueryKey) => key[2] === 'detail';
-
-/**
- * Une écriture financière a des effets en chaîne : une transaction change le solde des
- * comptes, la consommation des budgets et la progression des objectifs ; renommer un
- * compte change les listes de transactions, etc. Toutes les données financières sont donc
- * invalidées. Les listes affichées sont rechargées tout de suite ; les détails sont
- * seulement marqués périmés et rechargés à leur prochaine ouverture : l'écran d'un objet
- * qui vient d'être supprimé ne le redemande donc pas au backend (pas de 404).
- */
+/** Toute écriture invalide les données financières (soldes, budgets, objectifs…). */
 function useFinanceMutation<TVariables, TData>(
   entity: Entity,
   mutationFn: (variables: TVariables) => Promise<TData>,
   detailId?: string,
 ) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn,
-    onSuccess: (data) => {
-      if (detailId && data !== undefined) {
-        queryClient.setQueryData(financeKeys.detail(entity, detailId), data);
-      }
-      return Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: financeKeys.all,
-          predicate: (query) => !isDetailKey(query.queryKey),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: financeKeys.all,
-          predicate: (query) => isDetailKey(query.queryKey),
-          refetchType: 'none',
-        }),
-      ]);
-    },
-  });
+  return useDomainMutation(financeKeys, entity, mutationFn, detailId);
 }
 
 function useDetail<T>(entity: Entity, id: string | undefined, fetcher: (id: string) => Promise<T>) {
-  return useQuery({
-    queryKey: financeKeys.detail(entity, id ?? ''),
-    queryFn: () => fetcher(id as string),
-    enabled: Boolean(id),
-  });
+  return useDetailQuery(financeKeys, entity, id, fetcher);
 }
 
 // --- Comptes ----------------------------------------------------------------------------

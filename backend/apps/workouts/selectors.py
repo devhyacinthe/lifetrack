@@ -8,15 +8,24 @@ from django.db.models import Count, Sum
 
 from apps.core.periods import local_day_range, period_bounds
 
-from .models import GoalMetric, Workout
+from .models import GoalMetric, Workout, WorkoutStatus
 
 ZERO = Decimal("0")
 
 
 def workouts_in_period(user, start_date, end_date):
-    """Séances de l'utilisateur commencées entre deux dates locales (incluses)."""
+    """
+    Séances **terminées** de l'utilisateur commencées entre deux dates locales (incluses).
+
+    Une séance en cours n'a ni durée ni intensité : elle n'entre dans aucun calcul.
+    """
     start, end = local_day_range(user, start_date, end_date)
-    return Workout.objects.filter(user=user, started_at__gte=start, started_at__lt=end)
+    return Workout.objects.filter(
+        user=user,
+        status=WorkoutStatus.COMPLETED,
+        started_at__gte=start,
+        started_at__lt=end,
+    )
 
 
 def _totals_by_activity(queryset):

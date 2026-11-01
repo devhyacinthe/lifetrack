@@ -39,8 +39,17 @@ class ActivityType(TimeStampedModel):
         return self.name
 
 
+class WorkoutStatus(models.TextChoices):
+    IN_PROGRESS = "in_progress", "En cours"
+    COMPLETED = "completed", "Terminée"
+
+
 class Workout(TimeStampedModel):
-    """Séance enregistrée manuellement."""
+    """
+    Séance. Démarrée « en cours » (seuls l'activité et le début sont connus), puis
+    terminée : la durée, l'intensité ressentie et, en option, la distance et les calories
+    sont alors renseignées. Une séance passée peut aussi être saisie directement terminée.
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="workouts"
@@ -50,9 +59,13 @@ class Workout(TimeStampedModel):
     activity = models.ForeignKey(
         ActivityType, on_delete=models.RESTRICT, related_name="workouts", verbose_name="activité"
     )
+    status = models.CharField(
+        "statut", max_length=12, choices=WorkoutStatus.choices, default=WorkoutStatus.COMPLETED
+    )
     started_at = models.DateTimeField("début")
-    duration_seconds = models.PositiveIntegerField("durée (secondes)")
-    intensity = models.PositiveSmallIntegerField("intensité (1 à 10)")
+    # Vides tant que la séance est en cours.
+    duration_seconds = models.PositiveIntegerField("durée (secondes)", null=True, blank=True)
+    intensity = models.PositiveSmallIntegerField("intensité (1 à 10)", null=True, blank=True)
     distance_km = models.DecimalField(
         "distance (km)", max_digits=7, decimal_places=2, null=True, blank=True
     )
@@ -66,12 +79,32 @@ class Workout(TimeStampedModel):
         indexes = [models.Index(fields=["user", "started_at"], name="workouts_user_started")]
         constraints = [
             models.CheckConstraint(
-                condition=Q(duration_seconds__gte=1, duration_seconds__lte=MAX_DURATION_SECONDS),
+                condition=Q(duration_seconds__isnull=True)
+                | Q(duration_seconds__gte=1, duration_seconds__lte=MAX_DURATION_SECONDS),
                 name="workouts_duration_range",
             ),
             models.CheckConstraint(
-                condition=Q(intensity__gte=MIN_INTENSITY, intensity__lte=MAX_INTENSITY),
+                condition=Q(intensity__isnull=True)
+                | Q(intensity__gte=MIN_INTENSITY, intensity__lte=MAX_INTENSITY),
                 name="workouts_intensity_range",
+            ),
+            # Terminée : durée et intensité connues. En cours : rien de ce qui se mesure à la
+            # fin. L'unicité de la séance en cours est vérifiée par le serializer (MariaDB
+            # ne gère pas les contraintes d'unicité conditionnelles).
+            models.CheckConstraint(
+                condition=Q(
+                    status=WorkoutStatus.COMPLETED,
+                    duration_seconds__isnull=False,
+                    intensity__isnull=False,
+                )
+                | Q(
+                    status=WorkoutStatus.IN_PROGRESS,
+                    duration_seconds__isnull=True,
+                    intensity__isnull=True,
+                    distance_km__isnull=True,
+                    estimated_calories__isnull=True,
+                ),
+                name="workouts_status_consistency",
             ),
             models.CheckConstraint(
                 condition=Q(distance_km__isnull=True) | Q(distance_km__gt=0),

@@ -1,5 +1,6 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import serializers
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,11 +12,13 @@ from apps.core.api import (
     reference_date,
 )
 
+from . import services
 from .filters import ActivityTypeFilter, WorkoutFilter, WorkoutGoalFilter
 from .models import ActivityType, GoalPeriod, Workout, WorkoutGoal
 from .selectors import workout_stats
 from .serializers import (
     ActivityTypeSerializer,
+    FinishWorkoutSerializer,
     WorkoutGoalSerializer,
     WorkoutSerializer,
     WorkoutStatsSerializer,
@@ -51,6 +54,18 @@ class WorkoutViewSet(UserOwnedViewSet):
 
     def get_user_queryset(self, user):
         return Workout.objects.filter(user=user).select_related("activity")
+
+    @extend_schema(request=FinishWorkoutSerializer, responses=WorkoutSerializer)
+    @action(detail=True, methods=["post"])
+    def finish(self, request, pk=None):
+        """Termine une séance en cours : durée (calculée par défaut), intensité, distance…"""
+        workout = self.get_object()
+        serializer = FinishWorkoutSerializer(
+            data=request.data, context={**self.get_serializer_context(), "workout": workout}
+        )
+        serializer.is_valid(raise_exception=True)
+        workout = services.finish_workout(workout, **serializer.validated_data)
+        return Response(WorkoutSerializer(workout, context=self.get_serializer_context()).data)
 
 
 @extend_schema_view(

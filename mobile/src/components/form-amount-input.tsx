@@ -2,8 +2,9 @@ import { type Control, Controller, type FieldValues, type Path } from 'react-hoo
 import { StyleSheet, View } from 'react-native';
 import { HelperText, TextInput, useTheme } from 'react-native-paper';
 
-type FormAmountInputProps<T extends FieldValues> = {
-  control: Control<T>;
+type FormAmountInputProps<T extends FieldValues, TTransformed = T> = {
+  /** Les valeurs validées peuvent être transformées par le schéma (TTransformed). */
+  control: Control<T, unknown, TTransformed>;
   name: Path<T>;
   label: string;
   /** Code devise affiché à droite du montant. */
@@ -19,7 +20,7 @@ type FormAmountInputProps<T extends FieldValues> = {
  * Saisie d'un montant reliée à React Hook Form. La valeur reste du texte (« 12 500 »,
  * « 12,50 ») : le schéma Zod la convertit en chaîne décimale exacte pour l'API.
  */
-export function FormAmountInput<T extends FieldValues>({
+export function FormAmountInput<T extends FieldValues, TTransformed = T>({
   control,
   name,
   label,
@@ -27,7 +28,7 @@ export function FormAmountInput<T extends FieldValues>({
   autoFocus,
   large = false,
   allowNegative = false,
-}: FormAmountInputProps<T>) {
+}: FormAmountInputProps<T, TTransformed>) {
   const { colors } = useTheme();
 
   return (

@@ -209,18 +209,33 @@ Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre util
 
 ```json
 {
-  "id": "uuid", "activity": "uuid", "activity_name": "Course à pied",
+  "id": "uuid", "activity": "uuid", "activity_name": "Course à pied", "status": "completed",
   "started_at": "2026-10-15T07:00:00Z", "duration_seconds": 2700, "intensity": 7,
   "distance_km": "8.50", "estimated_calories": 520, "notes": "Bord de mer",
   "created_at": "…", "updated_at": "…"
 }
 ```
 
-- Obligatoires : `activity`, `started_at` (ISO 8601 avec fuseau, pas dans le futur), `duration_seconds` (1 à 86 400), `intensity` (1 à 10).
+- **Statut** (phase 10) : `in_progress` (séance démarrée) ou `completed` (terminée, par défaut).
+  - **Démarrer** : `POST` avec `activity`, `started_at` et `"status": "in_progress"`. `duration_seconds`, `intensity`, `distance_km` et `estimated_calories` doivent rester vides (400 sinon). **Une seule séance en cours** par utilisateur (400 sur `status`).
+  - **Séance passée** : `POST` sans statut (ou `completed`) ; `duration_seconds` (1 à 86 400) et `intensity` (1 à 10) sont alors obligatoires.
+  - Le statut ne change pas par `PATCH` (400) : il faut l'action `finish`.
+- `started_at` : ISO 8601 avec fuseau, pas dans le futur.
 - Facultatifs : `distance_km` (≥ 0,01, 2 décimales), `estimated_calories` (0 à 20 000 ; **estimation**, jamais une mesure exacte), `notes` (1000 caractères).
 - Une activité désactivée est refusée pour une **nouvelle** séance. Les séances existantes restent modifiables.
-- Filtres : `activity`, `date_after` et `date_before` (`YYYY-MM-DD`, bornes incluses, **dans le fuseau de l'utilisateur**), `intensity_min`, `intensity_max`.
+- Filtres : `activity`, `status`, `date_after` et `date_before` (`YYYY-MM-DD`, bornes incluses, **dans le fuseau de l'utilisateur**), `intensity_min`, `intensity_max`.
 - Recherche : `search` (notes). Tri : `ordering=started_at|duration_seconds|intensity|distance_km` (par défaut `-started_at`).
+
+### Terminer une séance : `POST /api/v1/workouts/sessions/{id}/finish/`
+
+```json
+{ "intensity": 7, "duration_seconds": 2700, "distance_km": "6.40", "estimated_calories": 480, "notes": "" }
+```
+
+- `intensity` obligatoire. `duration_seconds` facultative : **par défaut, maintenant − `started_at`**. Au-delà de 24 h, elle doit être fournie (400 sur `duration_seconds`).
+- `distance_km`, `estimated_calories` (estimation) et `notes` : facultatifs.
+- Réponse : la séance, avec `"status": "completed"`. Une séance déjà terminée : 400 sur `status`. Séance d'un autre utilisateur : 404.
+- Les **statistiques et objectifs ne comptent que les séances terminées**.
 
 ### Objectifs sportifs : `/api/v1/workouts/goals/`
 

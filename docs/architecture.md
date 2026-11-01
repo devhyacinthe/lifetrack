@@ -91,12 +91,14 @@ lifetrack/
         ├── app/                   # routes Expo Router (uniquement écrans et layouts)
         │   ├── _layout.tsx        # fournisseurs (Paper, thème de navigation) + pile racine
         │   ├── (tabs)/            # 5 onglets : index (Accueil), finances, sport, stats, profile
-        │   ├── (finance)/         # phase 7 : transactions/new, transactions/[id], categories
+        │   ├── (finance)/         # phases 7-8 : transactions, comptes, transferts, budgets, objectifs (goals), catégories
+        │   ├── (workouts)/        # phase 10 : sessions (start, new, [id], [id]/finish), activities, sport-goals
         │   └── (auth)/            # login, register
         ├── api/                   # phase 6 : client HTTP unique, endpoints, jetons
         ├── features/              # phases 6+ : profile/, finance/… (hooks TanStack Query, formulaires)
         ├── components/            # composants réutilisables (Screen, SectionCard, EmptyState, DateField…)
         ├── hooks/                 # hooks génériques (useDebouncedValue)
+        ├── lib/                   # domain-queries.ts : clés de cache et invalidation communes
         ├── utils/                 # fonctions pures (dates calendaires)
         ├── constants/             # constantes (définition des onglets…)
         ├── schemas/               # phase 6 : schémas Zod
@@ -192,3 +194,18 @@ apps/<domaine>/
 
 - Messages de commit du type `feat(finance): ajout des transferts`, `fix(users): …`, `docs: …`, `test: …`.
 - Une branche par phase (`phase-1-django-init`, …), fusionnée dans `main` après validation.
+
+### Écrans sportifs (phase 10)
+
+| Élément | Choix |
+|---|---|
+| Onglet Sport | résumé de la semaine ou du mois (`/workouts/stats/`), séance en cours, deux objectifs en cours, historique des séances **terminées** groupé par jour local, filtrable par activité |
+| Séance en cours | carte avec chronomètre ; **glisser vers la droite** (`ReanimatedSwipeable`, `GestureHandlerRootView` à la racine) ou bouton « Terminer » → formulaire de fin |
+| Formulaire de fin | durée proposée = temps écoulé (modifiable ; rien de proposé au-delà de 24 h), intensité, distance (si l'activité la mesure), calories **estimées**, notes |
+| Ajout | bouton « + » : « Démarrer une séance » (masqué si une séance est en cours) ou « Ajouter une séance passée » |
+| Routes | `/sport-goals` pour les objectifs sportifs : les groupes `(finance)` et `(workouts)` n'apparaissent pas dans l'URL, et `/goals` est déjà pris par les objectifs d'épargne |
+| Cache | `lib/domain-queries.ts`, partagé avec les finances : toute écriture invalide `['workouts', …]` |
+| Dates | les séances sont stockées en UTC et affichées dans le fuseau du téléphone ; les périodes des statistiques sont calculées par le backend dans le fuseau du profil |
+| Erreurs du backend | `renameFieldErrors` relie `duration_seconds`, `distance_km`… aux champs du formulaire ; une erreur sur un champ absent (ex. `status`) devient le message général, avec son texte |
+
+**Types des routes (`.expo/types/router.d.ts`)** : ce fichier est généré par `npx expo start`. Ne pas le supprimer avant de relancer Expo : la première génération est partielle (des routes manquent et `tsc` échoue). En cas de doute, relancer `npx expo start` et attendre quelques secondes avant `npm run typecheck`.

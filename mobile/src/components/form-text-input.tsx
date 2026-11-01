@@ -3,29 +3,33 @@ import { type Control, Controller, type FieldValues, type Path } from 'react-hoo
 import { StyleSheet, View } from 'react-native';
 import { HelperText, TextInput, type TextInputProps, useTheme } from 'react-native-paper';
 
-type FormTextInputProps<T extends FieldValues> = Omit<
+type FormTextInputProps<T extends FieldValues, TTransformed = T> = Omit<
   TextInputProps,
   'value' | 'onChangeText' | 'onBlur' | 'error' | 'left' | 'right'
 > & {
-  control: Control<T>;
+  /** Les valeurs validées peuvent être transformées par le schéma (TTransformed). */
+  control: Control<T, unknown, TTransformed>;
   name: Path<T>;
   label: string;
   /** Icône affichée à gauche du champ. */
   icon?: string;
+  /** Unité affichée à droite du champ (ex. « km »). */
+  affix?: string;
 };
 
 /**
  * Champ texte relié à React Hook Form, avec son message d'erreur accessible.
  * Un champ mot de passe reçoit un bouton pour afficher ou masquer la saisie.
  */
-export function FormTextInput<T extends FieldValues>({
+export function FormTextInput<T extends FieldValues, TTransformed = T>({
   control,
   name,
   label,
   icon,
+  affix,
   secureTextEntry,
   ...inputProps
-}: FormTextInputProps<T>) {
+}: FormTextInputProps<T, TTransformed>) {
   const { colors } = useTheme();
   const [hidden, setHidden] = useState(true);
 
@@ -58,6 +62,8 @@ export function FormTextInput<T extends FieldValues>({
                   }
                   color={colors.onSurfaceVariant}
                 />
+              ) : affix ? (
+                <TextInput.Affix text={affix} />
               ) : undefined
             }
             {...inputProps}

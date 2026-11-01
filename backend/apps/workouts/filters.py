@@ -2,7 +2,7 @@ import django_filters
 
 from apps.core.periods import local_day_range
 
-from .models import ActivityType, Workout, WorkoutGoal
+from .models import ActivityType, Workout, WorkoutGoal, WorkoutStatus
 
 # Les filtres par activité prennent un UUID sans vérifier qu'il existe : un identifiant
 # appartenant à un autre utilisateur donne une liste vide, sans révéler son existence.
@@ -16,6 +16,7 @@ class ActivityTypeFilter(django_filters.FilterSet):
 
 class WorkoutFilter(django_filters.FilterSet):
     activity = django_filters.UUIDFilter(field_name="activity_id")
+    status = django_filters.ChoiceFilter(choices=WorkoutStatus.choices)
     # Dates locales (fuseau de l'utilisateur), bornes incluses.
     date_after = django_filters.DateFilter(method="filter_date_after", label="À partir du")
     date_before = django_filters.DateFilter(method="filter_date_before", label="Jusqu'au")

@@ -28,3 +28,20 @@ export function dayLabel(value: string, today: Date = new Date()): string {
   });
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
+
+/** Intervalle d'une période (budget, statistiques) : « 1 nov. – 30 nov. 2026 » ou « 26 oct. – 1 nov. 2026 ». */
+export function formatPeriodRange(start: string, end: string): string {
+  const startDate = fromIsoDate(start);
+  const endDate = fromIsoDate(end);
+  const startText = startDate.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    ...(startDate.getFullYear() !== endDate.getFullYear() ? { year: 'numeric' } : {}),
+  });
+  const endText = endDate.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `${startText} – ${endText}`;
+}

@@ -180,6 +180,7 @@ SPECTACULAR_SETTINGS = {
         "BudgetPeriodEnum": "apps.finance.models.BudgetPeriod",
         "WorkoutGoalMetricEnum": "apps.workouts.models.GoalMetric",
         "WorkoutGoalPeriodEnum": "apps.workouts.models.GoalPeriod",
+        "WorkoutStatusEnum": "apps.workouts.models.WorkoutStatus",
     },
 }
 

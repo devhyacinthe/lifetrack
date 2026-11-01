@@ -3,7 +3,8 @@ import { Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PaperProvider } from 'react-native-paper';
 
 import { ApiError } from '@/api/errors';
@@ -40,6 +41,7 @@ function RootNavigator() {
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(finance)" />
+        <Stack.Screen name="(workouts)" />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="(auth)" />
@@ -53,15 +55,21 @@ export default function RootLayout() {
   const [queryClient] = useState(createQueryClient);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PaperProvider theme={paper}>
-          <ThemeProvider value={navigation}>
-            <StatusBar style="auto" />
-            <RootNavigator />
-          </ThemeProvider>
-        </PaperProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <PaperProvider theme={paper}>
+            <ThemeProvider value={navigation}>
+              <StatusBar style="auto" />
+              <RootNavigator />
+            </ThemeProvider>
+          </PaperProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

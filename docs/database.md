@@ -213,12 +213,15 @@ Chaque nouvel utilisateur reçoit 10 activités (`workouts/defaults.py`), par un
 | Champ | Règles |
 |---|---|
 | `activity` | du même utilisateur ; `RESTRICT` |
+| `status` | `in_progress` (en cours) ou `completed` (terminée) — phase 10, migration `0003_workout_status` |
 | `started_at` | date et heure, stockées en UTC ; pas dans le futur (tolérance de 5 min, vérifiée par l'API) |
-| `duration_seconds` | entier de 1 à 86 400 (24 h), contrainte en base |
-| `intensity` | entier de 1 à 10, contrainte en base |
+| `duration_seconds` | entier de 1 à 86 400 (24 h), contrainte en base ; vide tant que la séance est en cours |
+| `intensity` | entier de 1 à 10, contrainte en base ; vide tant que la séance est en cours |
 | `distance_km` | facultative, Decimal(7,2), strictement positive (contrainte en base) |
 | `estimated_calories` | facultatif, entier ≥ 0 ; **toujours une estimation**, jamais une mesure |
 | `notes` | facultatives, 1000 caractères |
+
+**Cohérence du statut** (contrainte en base `workouts_status_consistency`) : une séance terminée a une durée et une intensité ; une séance en cours n'a ni durée, ni intensité, ni distance, ni calories. Une seule séance en cours par utilisateur : vérifié par le serializer (contrainte conditionnelle impossible sous MariaDB). Les séances existantes avant la migration `0003` sont terminées.
 
 **`workouts.WorkoutGoal`** : objectif sportif récurrent
 
@@ -234,5 +237,6 @@ Un seul objectif par (mesure, période, activité). La contrainte est en base po
 **Calculs** (`workouts/selectors.py`), jamais stockés :
 
 - Les périodes sont calculées par `core.periods.period_bounds`, la même fonction que pour les budgets, dans le fuseau de l'utilisateur. Une séance compte pour le jour **local** où elle a commencé (`core.periods.local_day_range`).
+- Seules les séances **terminées** sont comptées.
 - **Statistiques** : nombre de séances, durée totale, durée moyenne (arrondie à la seconde), distance totale, et détail par activité. Une période sans séance renvoie des zéros.
 - **Progression** d'un objectif : la valeur atteinte sur la période, un pourcentage borné à 100, et `is_reached`. Une requête SQL par type de période présent.

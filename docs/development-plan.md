@@ -6,6 +6,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 
 **Choix de l'utilisateur (phase 8) :** budgets **récurrents** (hebdomadaires, mensuels ou annuels) ; objectifs d'épargne **rattachés à un compte**, dont la progression est le solde (pas de versements propres à l'objectif) ; phase découpée en **8a** (backend) puis **8b** (mobile).
 
+**Choix de l'utilisateur (phase 10) :** une séance est **démarrée** (« en cours ») puis **terminée** en la glissant ; la durée (temps écoulé, modifiable), l'intensité, la distance et les calories se saisissent à la fin. Une séance passée peut aussi être ajoutée directement terminée. Une seule séance en cours à la fois.
+
 ## Suivi des phases
 
 | Phase | Périmètre | Statut |
@@ -21,8 +23,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 7 | Interfaces financières | ✅ terminée (01/11/2026) : liste des transactions (recherche, filtres, tri, pagination), création, modification, suppression, gestion des catégories ; TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours validé par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
 | 8a | Budgets et objectifs d'épargne : backend | ✅ terminée (01/11/2026) : modèles, migration `0003`, API, 52 nouveaux tests (260 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger confirmés par l'utilisateur (sorties non transmises) |
 | 8b | Comptes, transferts, budgets et objectifs : écrans mobiles | ✅ terminée (01/11/2026) : TypeScript, ESLint, Prettier OK ; parcours validé par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
-| 9 | Module sportif backend | 🔄 développée : application `workouts` (activités, séances, objectifs, statistiques), migrations `0001` et `0002`, 55 nouveaux tests (315 réussis, 1 ignoré, en local sur SQLite) ; schéma OpenAPI valide ; CI MariaDB et déploiement o2switch à faire par l'utilisateur |
-| 10 | Interfaces sportives | à faire |
+| 9 | Module sportif backend | ✅ terminée (01/11/2026) : application `workouts` (activités, séances, objectifs, statistiques), migrations `0001` et `0002`, 55 nouveaux tests (315 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger confirmés par l'utilisateur (sorties non transmises) |
+| 10 | Interfaces sportives | 🔄 développée : onglet Sport (résumé, séance en cours, objectifs, historique), séances (démarrer, terminer par glissement, séance passée, modifier, supprimer), activités, objectifs sportifs ; backend : statut des séances (migration `workouts.0003`, action `finish`, 15 nouveaux tests, 330 réussis) ; mobile : ESLint, Prettier OK, TypeScript OK avec un fichier de routes complet ; tests Jest écrits, non exécutés (phase 13) ; essai sur téléphone et déploiement à faire |
 | 11 | Mesures corporelles et statistiques | à faire |
 | 12 | Tableau de bord global | à faire |
 | 13 | Tests d'intégration et de bout en bout | à faire |

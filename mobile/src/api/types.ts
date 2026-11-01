@@ -174,3 +174,118 @@ export type SavingsGoalPayload = Pick<
   SavingsGoal,
   'name' | 'account' | 'target_amount' | 'deadline'
 >;
+
+// --- Sport --------------------------------------------------------------------------------
+
+export type ActivityType = {
+  id: string;
+  name: string;
+  /** La distance a un sens pour cette activité (course, vélo…). */
+  tracks_distance: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ActivityTypePayload = Pick<ActivityType, 'name' | 'tracks_distance'>;
+export type ActivityTypeUpdatePayload = Partial<
+  ActivityTypePayload & Pick<ActivityType, 'is_active'>
+>;
+
+/** En cours : démarrée, sans durée ni intensité. Terminée : valeurs de fin renseignées. */
+export type WorkoutStatus = 'in_progress' | 'completed';
+
+export type Workout = {
+  id: string;
+  activity: string;
+  activity_name: string;
+  status: WorkoutStatus;
+  /** Instant ISO 8601 (UTC). */
+  started_at: string;
+  /** null tant que la séance est en cours. */
+  duration_seconds: number | null;
+  /** De 1 à 10 ; null tant que la séance est en cours. */
+  intensity: number | null;
+  distance_km: Decimal | null;
+  /** Estimation saisie par l'utilisateur, jamais une mesure exacte. */
+  estimated_calories: number | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Séance passée, saisie directement terminée. */
+export type WorkoutPayload = Pick<
+  Workout,
+  | 'activity'
+  | 'status'
+  | 'started_at'
+  | 'duration_seconds'
+  | 'intensity'
+  | 'distance_km'
+  | 'estimated_calories'
+  | 'notes'
+>;
+
+/** Démarrage d'une séance : seuls l'activité, le début et des notes sont connus. */
+export type StartWorkoutPayload = Pick<Workout, 'activity' | 'started_at' | 'notes'> & {
+  status: 'in_progress';
+};
+
+/** Fin d'une séance en cours (durée calculée par le backend si absente). */
+export type FinishWorkoutPayload = Pick<
+  Workout,
+  'duration_seconds' | 'distance_km' | 'estimated_calories' | 'notes'
+> & { intensity: number };
+
+export type WorkoutFilters = {
+  activity?: string;
+  status?: WorkoutStatus;
+};
+
+export type WorkoutGoalMetric = 'sessions' | 'duration' | 'distance';
+export type WorkoutGoalPeriod = 'weekly' | 'monthly';
+
+export type WorkoutGoal = {
+  id: string;
+  metric: WorkoutGoalMetric;
+  period: WorkoutGoalPeriod;
+  /** null : toutes les activités. */
+  activity: string | null;
+  activity_name: string | null;
+  /** Séances : nombre ; durée : secondes ; distance : km. */
+  target_value: Decimal;
+  /** Progression de la période en cours, calculée par le backend. */
+  period_start: string;
+  period_end: string;
+  current_value: Decimal;
+  /** Entre 0 et 100. */
+  percent: Decimal;
+  is_reached: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkoutGoalPayload = Pick<
+  WorkoutGoal,
+  'metric' | 'period' | 'activity' | 'target_value'
+>;
+
+export type ActivityStats = {
+  activity: string;
+  activity_name: string;
+  sessions_count: number;
+  total_duration_seconds: number;
+  total_distance_km: Decimal;
+};
+
+export type WorkoutStats = {
+  period: WorkoutGoalPeriod;
+  period_start: string;
+  period_end: string;
+  sessions_count: number;
+  total_duration_seconds: number;
+  average_duration_seconds: number;
+  total_distance_km: Decimal;
+  by_activity: ActivityStats[];
+};

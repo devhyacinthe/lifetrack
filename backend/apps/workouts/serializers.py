@@ -15,6 +15,7 @@ from .models import (
     GoalPeriod,
     Workout,
     WorkoutGoal,
+    WorkoutStatus,
 )
 from .selectors import attach_goal_progress
 
@@ -49,19 +50,26 @@ class ActivityTypeSerializer(serializers.ModelSerializer):
 # --- Séances --------------------------------------------------------------------------------
 
 
-class WorkoutSerializer(ModelCleanMixin, serializers.ModelSerializer):
-    activity = OwnedPrimaryKeyRelatedField(queryset=ActivityType.objects.all())
-    activity_name = serializers.CharField(source="activity.name", read_only=True)
-    duration_seconds = serializers.IntegerField(min_value=1, max_value=MAX_DURATION_SECONDS)
-    intensity = serializers.IntegerField(min_value=MIN_INTENSITY, max_value=MAX_INTENSITY)
-    distance_km = serializers.DecimalField(
-        max_digits=7,
-        decimal_places=2,
-        min_value=MIN_POSITIVE,
-        required=False,
-        allow_null=True,
+# Champs renseignés à la fin d'une séance (vides tant qu'elle est en cours).
+END_FIELDS = ["duration_seconds", "intensity", "distance_km", "estimated_calories"]
+
+
+def duration_field(**kwargs):
+    return serializers.IntegerField(min_value=1, max_value=MAX_DURATION_SECONDS, **kwargs)
+
+
+def intensity_field(**kwargs):
+    return serializers.IntegerField(min_value=MIN_INTENSITY, max_value=MAX_INTENSITY, **kwargs)
+
+
+def distance_field():
+    return serializers.DecimalField(
+        max_digits=7, decimal_places=2, min_value=MIN_POSITIVE, required=False, allow_null=True
     )
-    estimated_calories = serializers.IntegerField(
+
+
+def calories_field():
+    return serializers.IntegerField(
         min_value=0,
         max_value=MAX_ESTIMATED_CALORIES,
         required=False,
@@ -69,12 +77,29 @@ class WorkoutSerializer(ModelCleanMixin, serializers.ModelSerializer):
         help_text="Estimation saisie par l'utilisateur : ce n'est jamais une mesure exacte.",
     )
 
+
+class WorkoutSerializer(ModelCleanMixin, serializers.ModelSerializer):
+    """
+    Création d'une séance « en cours » (activité et début seulement) ou d'une séance passée
+    directement « terminée » (durée et intensité obligatoires). Le statut ne change ensuite
+    que par l'action « terminer » (voir FinishWorkoutSerializer).
+    """
+
+    activity = OwnedPrimaryKeyRelatedField(queryset=ActivityType.objects.all())
+    activity_name = serializers.CharField(source="activity.name", read_only=True)
+    status = serializers.ChoiceField(choices=WorkoutStatus.choices, required=False)
+    duration_seconds = duration_field(required=False, allow_null=True)
+    intensity = intensity_field(required=False, allow_null=True)
+    distance_km = distance_field()
+    estimated_calories = calories_field()
+
     class Meta:
         model = Workout
         fields = [
             "id",
             "activity",
             "activity_name",
+            "status",
             "started_at",
             "duration_seconds",
             "intensity",
@@ -92,6 +117,7 @@ class WorkoutSerializer(ModelCleanMixin, serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        user = self.context["request"].user
         activity = attrs.get("activity")
         # Une activité désactivée reste valable pour l'historique, pas pour une nouvelle séance.
         if (
@@ -101,16 +127,85 @@ class WorkoutSerializer(ModelCleanMixin, serializers.ModelSerializer):
         ):
             raise serializers.ValidationError({"activity": "Cette activité est désactivée."})
 
-        candidate = Workout(user=self.context["request"].user)
+        if self.instance and attrs.get("status", self.instance.status) != self.instance.status:
+            raise serializers.ValidationError(
+                {"status": "Pour terminer une séance, utilisez l'action « terminer »."}
+            )
+        status = (
+            self.instance.status if self.instance else attrs.get("status", WorkoutStatus.COMPLETED)
+        )
+
+        def value(field):
+            return attrs.get(field, getattr(self.instance, field, None))
+
+        if status == WorkoutStatus.IN_PROGRESS:
+            errors = {
+                field: "Renseigné à la fin de la séance."
+                for field in END_FIELDS
+                if attrs.get(field) is not None
+            }
+            if errors:
+                raise serializers.ValidationError(errors)
+            ongoing = Workout.objects.filter(user=user, status=WorkoutStatus.IN_PROGRESS)
+            if self.instance:
+                ongoing = ongoing.exclude(pk=self.instance.pk)
+            if ongoing.exists():
+                raise serializers.ValidationError(
+                    {"status": "Une séance est déjà en cours : terminez-la ou supprimez-la."}
+                )
+        else:
+            errors = {
+                field: "Obligatoire pour une séance terminée."
+                for field in ["duration_seconds", "intensity"]
+                if value(field) is None
+            }
+            if errors:
+                raise serializers.ValidationError(errors)
+
+        candidate = Workout(user=user)
         if self.instance:
             candidate.activity = self.instance.activity
-        for field, value in attrs.items():
-            setattr(candidate, field, value)
+        for field, field_value in attrs.items():
+            setattr(candidate, field, field_value)
         self.run_model_clean(candidate)
         return attrs
 
     def create(self, validated_data):
         return services.create_workout(self.context["request"].user, **validated_data)
+
+
+class FinishWorkoutSerializer(serializers.Serializer):
+    """
+    Fin d'une séance en cours. Sans durée, elle est calculée : maintenant − début.
+    L'intensité ressentie est obligatoire ; distance, calories et notes sont facultatives.
+    """
+
+    duration_seconds = duration_field(
+        required=False,
+        allow_null=True,
+        help_text="Par défaut : temps écoulé depuis le début de la séance.",
+    )
+    intensity = intensity_field()
+    distance_km = distance_field()
+    estimated_calories = calories_field()
+    notes = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        workout = self.context["workout"]
+        if workout.status != WorkoutStatus.IN_PROGRESS:
+            raise serializers.ValidationError({"status": "Cette séance est déjà terminée."})
+        if attrs.get("duration_seconds") is None:
+            elapsed = round((timezone.now() - workout.started_at).total_seconds())
+            if elapsed > MAX_DURATION_SECONDS:
+                raise serializers.ValidationError(
+                    {
+                        "duration_seconds": (
+                            "Plus de 24 h depuis le début : indiquez la durée réelle de la séance."
+                        )
+                    }
+                )
+            attrs["duration_seconds"] = max(elapsed, 1)
+        return attrs
 
 
 # --- Objectifs ------------------------------------------------------------------------------
