@@ -2,13 +2,21 @@
 import { apiRequest } from './client';
 import type {
   Account,
+  AccountPayload,
+  AccountUpdatePayload,
+  Budget,
+  BudgetPayload,
   Category,
   CategoryCreatePayload,
   CategoryUpdatePayload,
   Paginated,
+  SavingsGoal,
+  SavingsGoalPayload,
   Transaction,
   TransactionFilters,
   TransactionPayload,
+  Transfer,
+  TransferPayload,
 } from './types';
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -36,10 +44,28 @@ async function listAll<T>(path: string, params: Record<string, QueryValue> = {})
   }
 }
 
-// Comptes (lecture seule en phase 7 ; gestion complète en phase 8)
+// Comptes
 
+/** Tous les comptes, archivés compris, avec leur solde calculé par le backend. */
 export function listAccounts(): Promise<Account[]> {
   return listAll<Account>('/finance/accounts/');
+}
+
+export function getAccount(id: string): Promise<Account> {
+  return apiRequest<Account>(`/finance/accounts/${id}/`);
+}
+
+export function createAccount(payload: AccountPayload): Promise<Account> {
+  return apiRequest<Account>('/finance/accounts/', { method: 'POST', body: payload });
+}
+
+export function updateAccount(id: string, payload: AccountUpdatePayload): Promise<Account> {
+  return apiRequest<Account>(`/finance/accounts/${id}/`, { method: 'PATCH', body: payload });
+}
+
+/** Lève une ApiError 409 si le compte a des opérations ou un objectif : il faut l'archiver. */
+export function deleteAccount(id: string): Promise<void> {
+  return apiRequest<void>(`/finance/accounts/${id}/`, { method: 'DELETE' });
 }
 
 // Catégories
@@ -95,4 +121,74 @@ export function updateTransaction(
 
 export function deleteTransaction(id: string): Promise<void> {
   return apiRequest<void>(`/finance/transactions/${id}/`, { method: 'DELETE' });
+}
+
+// Transferts
+
+export const TRANSFERS_PAGE_SIZE = 20;
+
+export function listTransfers(page: number): Promise<Paginated<Transfer>> {
+  return apiRequest<Paginated<Transfer>>(
+    `/finance/transfers/${toQueryString({ page, page_size: TRANSFERS_PAGE_SIZE })}`,
+  );
+}
+
+export function getTransfer(id: string): Promise<Transfer> {
+  return apiRequest<Transfer>(`/finance/transfers/${id}/`);
+}
+
+export function createTransfer(payload: TransferPayload): Promise<Transfer> {
+  return apiRequest<Transfer>('/finance/transfers/', { method: 'POST', body: payload });
+}
+
+export function updateTransfer(id: string, payload: Partial<TransferPayload>): Promise<Transfer> {
+  return apiRequest<Transfer>(`/finance/transfers/${id}/`, { method: 'PATCH', body: payload });
+}
+
+export function deleteTransfer(id: string): Promise<void> {
+  return apiRequest<void>(`/finance/transfers/${id}/`, { method: 'DELETE' });
+}
+
+// Budgets (consommation calculée pour la période en cours, dans le fuseau de l'utilisateur)
+
+export function listBudgets(): Promise<Budget[]> {
+  return listAll<Budget>('/finance/budgets/');
+}
+
+export function getBudget(id: string): Promise<Budget> {
+  return apiRequest<Budget>(`/finance/budgets/${id}/`);
+}
+
+export function createBudget(payload: BudgetPayload): Promise<Budget> {
+  return apiRequest<Budget>('/finance/budgets/', { method: 'POST', body: payload });
+}
+
+export function updateBudget(id: string, payload: Partial<BudgetPayload>): Promise<Budget> {
+  return apiRequest<Budget>(`/finance/budgets/${id}/`, { method: 'PATCH', body: payload });
+}
+
+export function deleteBudget(id: string): Promise<void> {
+  return apiRequest<void>(`/finance/budgets/${id}/`, { method: 'DELETE' });
+}
+
+// Objectifs d'épargne (progression = solde du compte rattaché)
+
+export function listGoals(): Promise<SavingsGoal[]> {
+  return listAll<SavingsGoal>('/finance/goals/');
+}
+
+export function getGoal(id: string): Promise<SavingsGoal> {
+  return apiRequest<SavingsGoal>(`/finance/goals/${id}/`);
+}
+
+export function createGoal(payload: SavingsGoalPayload): Promise<SavingsGoal> {
+  return apiRequest<SavingsGoal>('/finance/goals/', { method: 'POST', body: payload });
+}
+
+export function updateGoal(id: string, payload: Partial<SavingsGoalPayload>): Promise<SavingsGoal> {
+  return apiRequest<SavingsGoal>(`/finance/goals/${id}/`, { method: 'PATCH', body: payload });
+}
+
+export function deleteGoal(id: string): Promise<void> {
+  return apiRequest<void>(`/finance/goals/${id}/`, { method: 'DELETE' });
 }

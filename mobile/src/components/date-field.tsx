@@ -10,10 +10,12 @@ type DateFieldProps = {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  /** Raccourcis « Aujourd'hui » et « Hier » (inutiles pour une échéance future). */
+  showShortcuts?: boolean;
 };
 
 /** Choix d'une date (sans heure) : raccourcis et sélecteur natif du téléphone. */
-export function DateField({ label, value, onChange, error }: DateFieldProps) {
+export function DateField({ label, value, onChange, error, showShortcuts = true }: DateFieldProps) {
   const { colors } = useTheme();
   const today = new Date();
   const todayIso = toIsoDate(today);
@@ -35,20 +37,22 @@ export function DateField({ label, value, onChange, error }: DateFieldProps) {
       <Text variant="labelLarge" style={{ color: colors.onSurfaceVariant }}>
         {label}
       </Text>
-      <View style={styles.row}>
-        <Chip
-          selected={value === todayIso}
-          showSelectedCheck={false}
-          onPress={() => onChange(todayIso)}>
-          Aujourd’hui
-        </Chip>
-        <Chip
-          selected={value === yesterdayIso}
-          showSelectedCheck={false}
-          onPress={() => onChange(yesterdayIso)}>
-          Hier
-        </Chip>
-      </View>
+      {showShortcuts ? (
+        <View style={styles.row}>
+          <Chip
+            selected={value === todayIso}
+            showSelectedCheck={false}
+            onPress={() => onChange(todayIso)}>
+            Aujourd’hui
+          </Chip>
+          <Chip
+            selected={value === yesterdayIso}
+            showSelectedCheck={false}
+            onPress={() => onChange(yesterdayIso)}>
+            Hier
+          </Chip>
+        </View>
+      ) : null}
       {Platform.OS === 'ios' ? (
         <DateTimePicker
           value={fromIsoDate(value)}

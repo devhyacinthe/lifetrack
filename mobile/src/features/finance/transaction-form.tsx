@@ -17,6 +17,7 @@ import type { Account, Category, Transaction, TransactionType } from '@/api/type
 import { ChoiceChips } from '@/components/choice-chips';
 import { DateField } from '@/components/date-field';
 import { EmptyState } from '@/components/empty-state';
+import { FormAmountInput } from '@/components/form-amount-input';
 import { FormMessage } from '@/components/form-message';
 import { applyApiErrors } from '@/forms/api-errors';
 import {
@@ -176,33 +177,13 @@ function TransactionFormFields({
         )}
       />
 
-      <Controller
+      <FormAmountInput
         control={control}
         name="amount"
-        render={({ field, fieldState }) => (
-          <View>
-            <TextInput
-              mode="outlined"
-              label="Montant"
-              value={field.value}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              keyboardType="decimal-pad"
-              error={Boolean(fieldState.error)}
-              accessibilityLabel="Montant"
-              outlineStyle={styles.outline}
-              style={[styles.amount, { backgroundColor: colors.surface }]}
-              contentStyle={styles.amountContent}
-              right={currency ? <TextInput.Affix text={currency} /> : undefined}
-              autoFocus={!initial}
-            />
-            {fieldState.error ? (
-              <HelperText type="error" visible>
-                {fieldState.error.message}
-              </HelperText>
-            ) : null}
-          </View>
-        )}
+        label="Montant"
+        currency={currency}
+        autoFocus={!initial}
+        large
       />
 
       <Controller
@@ -321,8 +302,6 @@ const styles = StyleSheet.create({
   loader: { marginTop: 48 },
   form: { gap: 20 },
   outline: { borderRadius: 16 },
-  amount: { fontSize: 28 },
-  amountContent: { fontWeight: '700' },
   buttonContent: { height: 52 },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
 });

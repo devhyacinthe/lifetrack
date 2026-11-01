@@ -5,7 +5,7 @@
  * la conversion en nombre ne sert qu'à l'affichage.
  */
 import type { Decimal, TransactionType } from '@/api/types';
-import { toIsoDate } from '@/utils/dates';
+import { fromIsoDate, toIsoDate } from '@/utils/dates';
 
 /** Montant au format de l'API : au plus 13 chiffres avant la virgule et 2 après. */
 const AMOUNT_PATTERN = /^\d{1,13}(\.\d{1,2})?$/;
@@ -15,6 +15,15 @@ export function normalizeAmountInput(input: string): Decimal | null {
   const cleaned = input.replace(/[\s  ]/g, '').replace(',', '.');
   if (!AMOUNT_PATTERN.test(cleaned)) return null;
   return cleaned;
+}
+
+/** Comme normalizeAmountInput, avec un signe moins facultatif (solde initial d'un compte). */
+export function normalizeSignedAmountInput(input: string): Decimal | null {
+  const trimmed = input.trim();
+  const negative = /^[-−]/.test(trimmed);
+  const normalized = normalizeAmountInput(negative ? trimmed.slice(1) : trimmed);
+  if (normalized === null) return null;
+  return negative && Number(normalized) !== 0 ? `-${normalized}` : normalized;
 }
 
 /** Montant décimal (« 12500.00 ») en texte éditable sans zéros inutiles (« 12500 »). */
@@ -88,4 +97,21 @@ export function periodRange(
     default:
       return {};
   }
+}
+
+/** Intervalle d'une période de budget : « 1 nov. – 30 nov. 2026 » ou « 26 oct. – 1 nov. 2026 ». */
+export function formatPeriodRange(start: string, end: string): string {
+  const startDate = fromIsoDate(start);
+  const endDate = fromIsoDate(end);
+  const startText = startDate.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    ...(startDate.getFullYear() !== endDate.getFullYear() ? { year: 'numeric' } : {}),
+  });
+  const endText = endDate.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  return `${startText} – ${endText}`;
 }

@@ -104,3 +104,73 @@ export type TransactionFilters = {
   date_before?: string;
   ordering?: TransactionOrdering;
 };
+
+export type AccountPayload = Pick<Account, 'name' | 'type' | 'currency' | 'initial_balance'>;
+export type AccountUpdatePayload = Partial<AccountPayload & Pick<Account, 'is_archived'>>;
+
+export type Transfer = {
+  id: string;
+  from_account: string;
+  from_account_name: string;
+  to_account: string;
+  to_account_name: string;
+  amount: Decimal;
+  currency: string;
+  /** Date locale YYYY-MM-DD. */
+  date: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransferPayload = Pick<
+  Transfer,
+  'from_account' | 'to_account' | 'amount' | 'date' | 'description'
+>;
+
+export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly';
+
+export type Budget = {
+  id: string;
+  /** null : budget global (toutes les dépenses). */
+  category: string | null;
+  category_name: string | null;
+  amount: Decimal;
+  currency: string;
+  period: BudgetPeriod;
+  /** Consommation de la période en cours, calculée par le backend. */
+  period_start: string;
+  period_end: string;
+  spent: Decimal;
+  /** Négatif en cas de dépassement. */
+  remaining: Decimal;
+  /** Pourcentage arrondi à 0,1 ; peut dépasser 100. */
+  percent_used: Decimal;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BudgetPayload = Pick<Budget, 'category' | 'amount' | 'currency' | 'period'>;
+
+export type SavingsGoal = {
+  id: string;
+  name: string;
+  account: string;
+  account_name: string;
+  currency: string;
+  target_amount: Decimal;
+  deadline: string | null;
+  /** Solde du compte rattaché, calculé par le backend. */
+  current_amount: Decimal;
+  remaining_amount: Decimal;
+  /** Entre 0 et 100. */
+  percent: Decimal;
+  is_reached: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavingsGoalPayload = Pick<
+  SavingsGoal,
+  'name' | 'account' | 'target_amount' | 'deadline'
+>;

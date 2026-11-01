@@ -1,5 +1,11 @@
 /** Libellés français et icônes des valeurs financières (présentation uniquement). */
-import type { PaymentMethod, TransactionOrdering, TransactionType } from '@/api/types';
+import type {
+  AccountType,
+  BudgetPeriod,
+  PaymentMethod,
+  TransactionOrdering,
+  TransactionType,
+} from '@/api/types';
 
 export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
   income: 'Revenu',
@@ -46,3 +52,27 @@ const CATEGORY_ICONS: Record<string, string> = {
 export function categoryIcon(name: string, type: TransactionType): string {
   return CATEGORY_ICONS[name] ?? (type === 'income' ? 'arrow-bottom-left' : 'arrow-top-right');
 }
+
+export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
+  cash: 'Espèces',
+  bank: 'Banque',
+  mobile_money: 'Mobile Money',
+  savings: 'Épargne',
+};
+
+export const ACCOUNT_TYPE_ICONS: Record<AccountType, string> = {
+  cash: 'cash',
+  bank: 'bank-outline',
+  mobile_money: 'cellphone',
+  savings: 'piggy-bank-outline',
+};
+
+export const ACCOUNT_TYPES = Object.keys(ACCOUNT_TYPE_LABELS) as AccountType[];
+
+export const BUDGET_PERIOD_LABELS: Record<BudgetPeriod, string> = {
+  weekly: 'Par semaine',
+  monthly: 'Par mois',
+  yearly: 'Par an',
+};
+
+export const BUDGET_PERIODS = Object.keys(BUDGET_PERIOD_LABELS) as BudgetPeriod[];

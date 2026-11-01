@@ -128,10 +128,22 @@ Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fich
 | Montants | chaînes décimales exactes de l'API jusqu'au formulaire (`normalizeAmountInput` : « 12 500 » ou « 12,50 » → `"12500"`, `"12.50"`) ; conversion en nombre **pour l'affichage uniquement** |
 | Dates | `YYYY-MM-DD` calculées dans le fuseau du téléphone (`src/utils/dates.ts`), jamais via `toISOString()` (UTC) |
 | Liste des transactions | `useInfiniteQuery` (20 par page), sections par jour quand le tri est par date ; filtres envoyés au backend (`search` temporisé à 400 ms, `type`, `category`, `date_after`/`date_before`, `ordering`) |
-| Cache | clés `['finance', …]` ; une écriture de transaction invalide les listes et les comptes (soldes) ; une écriture de catégorie invalide aussi les transactions (nom affiché) |
+| Cache | clés `['finance', objet, 'list' \| 'detail', …]` ; voir « Invalidation » ci-dessous (phase 8b) |
 | Historique | une catégorie désactivée ou un compte archivé restent proposés uniquement pour la transaction qui les utilise déjà, comme le backend l'autorise |
 | Suppression d'une catégorie utilisée | le 409 du backend est affiché et l'écran propose de la désactiver |
-| Comptes | lecture seule en phase 7 (le compte « Espèces » créé par défaut suffit) ; gestion complète en phase 8 |
+| Comptes | gestion complète en phase 8b |
+
+### Comptes, transferts, budgets et objectifs (phase 8b)
+
+| Élément | Choix |
+|---|---|
+| Accès | rangée de raccourcis en haut de l'onglet Finances (Comptes, Budgets, Objectifs, Catégories) ; transferts depuis l'écran Comptes |
+| Écrans | `(finance)/accounts`, `transfers`, `budgets`, `goals` : liste, `new`, `[id]` (modification et suppression) |
+| Chiffres affichés | soldes, consommation des budgets et progression des objectifs **tels que renvoyés par le backend** ; l'application n'additionne ni ne recalcule aucun montant |
+| Invalidation | toute écriture financière invalide toutes les données `['finance', …]` : les listes affichées sont rechargées, les détails sont seulement marqués périmés (rechargés à leur prochaine ouverture, donc pas de 404 sur un objet supprimé) ; une transaction modifie en effet soldes, budgets et objectifs |
+| Refus 409 | compte utilisé : le dialogue de suppression propose « Archiver » |
+| Objectifs | un compte déjà rattaché à un objectif n'est pas proposé ; bouton « Épargner » = transfert prérempli vers le compte de l'objectif |
+| Composants partagés | `ListCard`, `ProgressMeter`, `ConfirmDialog`, `QueryStatus`, `FormAmountInput` (montant signé possible pour le solde initial) |
 
 ### Structure type d'une application Django
 

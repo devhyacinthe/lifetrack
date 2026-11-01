@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { RefreshControl, SectionList, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, FAB, IconButton, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, FAB, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { errorMessage } from '@/api/errors';
 import type { TransactionFilters as ApiFilters } from '@/api/types';
 import { EmptyState } from '@/components/empty-state';
+import { FinanceShortcuts } from '@/features/finance/finance-shortcuts';
 import { periodRange } from '@/features/finance/format';
 import { groupByDay, type TransactionSection } from '@/features/finance/grouping';
 import { useCategories, useTransactions } from '@/features/finance/queries';
@@ -59,17 +60,20 @@ export default function FinancesScreen() {
             Finances
           </Text>
           <Text variant="bodyMedium" style={{ color: colors.onSurfaceVariant }}>
-            {count === undefined
-              ? 'Vos revenus et dépenses'
-              : `${count} transaction${count > 1 ? 's' : ''}${filtered ? ' trouvée' + (count > 1 ? 's' : '') : ''}`}
+            Comptes, budgets, objectifs et transactions
           </Text>
         </View>
-        <IconButton
-          icon="shape-outline"
-          mode="contained-tonal"
-          onPress={() => router.push('/categories')}
-          accessibilityLabel="Gérer les catégories"
-        />
+      </View>
+      <FinanceShortcuts />
+      <View style={styles.titleRow}>
+        <Text variant="titleMedium" accessibilityRole="header" style={styles.titleText}>
+          Transactions
+        </Text>
+        {count !== undefined ? (
+          <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
+            {`${count} ${filtered ? 'trouvée' : 'au total'}${filtered && count > 1 ? 's' : ''}`}
+          </Text>
+        ) : null}
       </View>
       <TransactionFilters
         filters={filters}
