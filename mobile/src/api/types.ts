@@ -388,3 +388,38 @@ export type MetricSeries = {
   last: Decimal | null;
   change: Decimal | null;
 };
+
+// --- Tableau de bord -----------------------------------------------------------------------
+
+export type CurrencyBalance = {
+  currency: string;
+  balance: Decimal;
+  accounts_count: number;
+};
+
+export type DashboardFinance = {
+  income: Decimal;
+  expense: Decimal;
+  /** Revenus moins dépenses du mois. */
+  net: Decimal;
+  /** Somme des soldes des comptes non archivés dans la devise préférée. */
+  balance: Decimal;
+  accounts_count: number;
+  /** Comptes actifs des autres devises, jamais additionnés au solde principal. */
+  other_currencies: CurrencyBalance[];
+};
+
+/** Indicateurs du mois en cours, dans la devise préférée (GET /dashboard/). */
+export type Dashboard = {
+  reference_date: string;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  finance: DashboardFinance;
+  budgets: Budget[];
+  workouts: WorkoutStats;
+  ongoing_session: Workout | null;
+  workout_goals: WorkoutGoal[];
+  latest_transactions: Transaction[];
+  latest_sessions: Workout[];
+};

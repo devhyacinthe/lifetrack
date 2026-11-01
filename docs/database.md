@@ -1,6 +1,6 @@
 # Base de données
 
-> Les modèles métier sont décrits au fil des phases (section 5).
+> Environnements, configuration MariaDB, conventions de modélisation et description des modèles (section 5).
 
 ## 1. Environnements
 
@@ -28,7 +28,7 @@ Le développement sur SQLite et la production sur MariaDB peuvent se comporter d
 - **Concurrence** : SQLite verrouille la base entière ; `select_for_update()` n'y a pas d'effet. Les transferts entre comptes ne sont donc pas testés en conditions concurrentes en local.
 - **Comparaisons de texte** : la collation de MariaDB est par défaut insensible à la casse, contrairement à SQLite. Une contrainte d'unicité sur un nom de catégorie, par exemple, peut se comporter différemment.
 
-**Règle :** les tests des calculs financiers (soldes, budgets, transferts) doivent aussi être exécutés sur MariaDB avant la mise en production. Il suffit de lancer `pytest` avec `TEST_DATABASE_URL` pointant vers une base MariaDB dédiée aux tests (jamais la base de production : pytest crée et détruit une base `test_…`), sur une base de test o2switch, une base locale ou une CI. La solution sera choisie avant la phase 4.
+**Règle :** les tests des calculs financiers (soldes, budgets, transferts) doivent aussi être exécutés sur MariaDB avant la mise en production. Il suffit de lancer `pytest` avec `TEST_DATABASE_URL` pointant vers une base MariaDB dédiée aux tests (jamais la base de production : pytest crée et détruit une base `test_…`), C'est ce que fait la CI GitHub Actions (`.github/workflows/backend.yml`) à chaque `git push`.
 
 ## 4. Conventions de modélisation
 
@@ -44,7 +44,7 @@ Le développement sur SQLite et la production sur MariaDB peuvent se comporter d
 
 ## 5. Modèles
 
-### 5.1 `users.User` (phase 2)
+### 5.1 `users.User`
 
 Modèle utilisateur personnalisé (`AUTH_USER_MODEL = "users.User"`), défini dès la première migration.
 
@@ -55,7 +55,7 @@ Modèle utilisateur personnalisé (`AUTH_USER_MODEL = "users.User"`), défini d�
 | `password` | hachage Django | jamais exposé par l'API |
 | `first_name`, `last_name` | CharField(150) | facultatifs |
 | `preferred_currency` | CharField(3) | code ISO 4217, `XOF` par défaut |
-| `timezone` | CharField(64) | nom IANA validé, `Africa/Lome` par défaut (les comptes créés avant la phase 3 ont gardé `Africa/Abidjan`, même heure UTC+0) |
+| `timezone` | CharField(64) | nom IANA validé, `Africa/Lome` par défaut |
 | `is_active`, `is_staff`, `is_superuser` | booléens | non modifiables via l'API |
 | `date_joined`, `last_login` | DateTimeField (UTC) | |
 
@@ -69,9 +69,9 @@ L'unicité insensible à la casse de l'e-mail est garantie par la normalisation 
 | `token_blacklist_blacklistedtoken` | SimpleJWT | jetons révoqués (déconnexion, rotation, changement de mot de passe) |
 | `lifetrack_cache` | `createcachetable` | cache partagé (compteurs de limitation des tentatives) |
 
-Les jetons expirés s'accumulent dans ces tables. Ils seront purgés régulièrement avec `python manage.py flushexpiredtokens` (tâche cron à mettre en place en phase 14).
+Les jetons expirés s'accumulent dans ces tables. Ils peuvent être purgés avec `python manage.py flushexpiredtokens` (à lancer de temps en temps, ou par une tâche cron cPanel).
 
-### 5.3 Module financier (phase 3)
+### 5.3 Module financier
 
 Tous les modèles héritent de `core.TimeStampedModel` (`id` UUID, `created_at`, `updated_at`) et appartiennent à un utilisateur (`user`, `on_delete=CASCADE`).
 
@@ -142,9 +142,9 @@ solde = solde initial + revenus − dépenses + transferts reçus − transferts
 | Montant positif, type valide, comptes distincts, unicité des noms | contraintes MariaDB/SQLite |
 | Compte et catégorie du même utilisateur, catégorie du bon type, même devise pour un transfert | `clean()` des modèles, appelé par `finance.services` avant toute écriture |
 
-**Données initiales :** chaque nouvel utilisateur reçoit 11 catégories de dépenses, 6 de revenus et un compte « Espèces » dans sa devise préférée. Ces données sont créées par un signal `post_save` (`finance/signals.py`) ; la liste est dans `finance/defaults.py`. Les utilisateurs créés avant la phase 3 les ont reçues via la migration `finance.0002`.
+**Données initiales :** chaque nouvel utilisateur reçoit 11 catégories de dépenses, 6 de revenus et un compte « Espèces » dans sa devise préférée. Ces données sont créées par un signal `post_save` (`finance/signals.py`) ; la liste est dans `finance/defaults.py`. Les utilisateurs déjà existants les ont reçues via la migration `finance.0002`.
 
-### 5.4 Budgets et objectifs d'épargne (phase 8a)
+### 5.4 Budgets et objectifs d'épargne
 
 Migration `finance.0003_budgets_and_savings_goals`.
 
@@ -194,7 +194,7 @@ Les revenus et les transferts ne sont jamais comptés. Une seule requête SQL es
 
 **Suppression :** une catégorie utilisée par un budget, ou un compte rattaché à un objectif, ne peut pas être supprimé (409). Supprimer un budget ou un objectif ne touche ni les transactions ni le compte.
 
-### 5.5 Module sportif (phase 9)
+### 5.5 Module sportif
 
 Application `workouts`, migrations `0001_initial` et `0002_default_activities_for_existing_users`. Tous les modèles appartiennent à un utilisateur (`CASCADE`).
 
@@ -213,7 +213,7 @@ Chaque nouvel utilisateur reçoit 10 activités (`workouts/defaults.py`), par un
 | Champ | Règles |
 |---|---|
 | `activity` | du même utilisateur ; `RESTRICT` |
-| `status` | `in_progress` (en cours) ou `completed` (terminée) — phase 10, migration `0003_workout_status` |
+| `status` | `in_progress` (en cours) ou `completed` (terminée), migration `0003_workout_status` |
 | `started_at` | date et heure, stockées en UTC ; pas dans le futur (tolérance de 5 min, vérifiée par l'API) |
 | `duration_seconds` | entier de 1 à 86 400 (24 h), contrainte en base ; vide tant que la séance est en cours |
 | `intensity` | entier de 1 à 10, contrainte en base ; vide tant que la séance est en cours |
@@ -241,7 +241,7 @@ Un seul objectif par (mesure, période, activité). La contrainte est en base po
 - **Statistiques** : nombre de séances, durée totale, durée moyenne (arrondie à la seconde), distance totale, et détail par activité. Une période sans séance renvoie des zéros.
 - **Progression** d'un objectif : la valeur atteinte sur la période, un pourcentage borné à 100, et `is_reached`. Une requête SQL par type de période présent.
 
-### 5.6 Mesures corporelles (phase 11a)
+### 5.6 Mesures corporelles
 
 Application `body_metrics`, migrations `0001_initial` et `0002_default_metric_types_for_existing_users`. Tous les modèles appartiennent à un utilisateur (`CASCADE`).
 
@@ -268,7 +268,7 @@ Chaque nouvel utilisateur reçoit 5 types (`body_metrics/defaults.py`) par un si
 
 **Calculs** (`body_metrics/selectors.py`) : dernière valeur et nombre de mesures par type (sous-requêtes, une seule requête SQL) ; série d'une période avec minimum, maximum, première et dernière valeur, et variation. Aucune valeur n'est interpolée.
 
-### 5.7 Statistiques (phase 11a)
+### 5.7 Statistiques
 
 Aucune table : tout est recalculé depuis les données persistées.
 
@@ -276,6 +276,6 @@ Aucune table : tout est recalculé depuis les données persistées.
 - Finances (`finance/selectors.py`) : `monthly_totals` (une requête groupée par année, mois et type) et `category_totals`, pour **une seule devise** ; les transferts sont exclus.
 - Sport (`workouts/selectors.py`) : `workout_history` lit les séances terminées de toute la plage en une requête et les range par date locale.
 
-### 5.8 Tableau de bord (phase 12a)
+### 5.8 Tableau de bord
 
 Application `dashboard`, **sans modèle ni migration** : `dashboard/selectors.py` assemble les calculs existants (`finance.selectors.monthly_totals`, `accounts_with_balance`, `attach_budget_usage`, `workouts.selectors.workout_stats`, `attach_goal_progress`). Le solde estimé additionne les comptes non archivés, devise par devise.

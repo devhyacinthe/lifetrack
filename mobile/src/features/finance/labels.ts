@@ -7,11 +7,6 @@ import type {
   TransactionType,
 } from '@/api/types';
 
-export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
-  income: 'Revenu',
-  expense: 'Dépense',
-};
-
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Espèces',
   card: 'Carte',

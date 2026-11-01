@@ -15,216 +15,185 @@
 ```
 
 - Le backend est la **source de vérité**. Le mobile n'accède aux données que par l'API.
-- Les calculs métier (soldes, budgets, statistiques) sont faits côté backend.
+- Les calculs métier (soldes, budgets, statistiques, tableau de bord) sont faits côté backend, à partir des données enregistrées : aucune valeur calculée n'est stockée.
 - Toutes les données privées sont filtrées par utilisateur à chaque requête.
 
-## 2. Décisions techniques (phase 0)
+## 2. Décisions techniques
 
 | Sujet | Décision | Raison |
 |---|---|---|
 | Python | **3.12** (3.12.16 disponible sur o2switch) | version récente, compatible Django 5.2, même version en local et en production |
-| Django | **5.2 LTS** | support étendu jusqu'en avril 2028, compatible Python 3.10 à 3.14 |
+| Django | **5.2 LTS** | support étendu jusqu'en avril 2028 |
 | Base de production | **MariaDB 11.4** (version serveur vérifiée sur o2switch) | supportée par Django 5.2 ; le PostgreSQL d'o2switch (9.6) n'est plus maintenu ni supporté |
 | Base locale | **SQLite** | aucune installation nécessaire ; voir les limites dans [database.md](database.md) |
-| Pilote MariaDB | `PyMySQL` | pur Python ; `mysqlclient` ne peut pas être compilé sur o2switch (gcc interdit, constaté en phase 1b) |
-| Mode SQL MariaDB | `utf8mb4` + `STRICT_TRANS_TABLES` | refuse les données invalides au lieu de les tronquer |
+| Pilote MariaDB | `PyMySQL` | pur Python ; `mysqlclient` ne peut pas être compilé sur o2switch (gcc interdit) |
+| Mode SQL MariaDB | `utf8mb4` / `utf8mb4_unicode_ci` + `STRICT_TRANS_TABLES` | tous les caractères Unicode ; refuse les données invalides au lieu de les tronquer |
 | Authentification | SimpleJWT + `token_blacklist` ; `access` 15 min, `refresh` 7 jours à usage unique (rotation) | révocation à la déconnexion, au changement de mot de passe et à la suppression du compte |
 | Utilisateur | modèle personnalisé `users.User`, e-mail comme identifiant, clé UUID | exigé dès la première migration |
-| Limitation des tentatives | `login` 5/min, `register` 10/h par IP ; `NUM_PROXIES=0` | l'en-tête `X-Forwarded-For`, falsifiable, est ignoré |
+| Limitation des tentatives | `login` 5/min, `register` 10/h par IP | protection contre les attaques par force brute |
 | Documentation API | `drf-spectacular` (OpenAPI 3, Swagger UI, ReDoc) | schéma généré depuis le code |
 | Filtres | `django-filter` | filtres déclaratifs et documentés dans OpenAPI |
 | Intégration continue | GitHub Actions (`.github/workflows/backend.yml`) : lint, contrôles Django, schéma OpenAPI, tests sur SQLite **et sur MariaDB 11.4** | mêmes conditions que la production à chaque `git push` |
-| Encodage MariaDB | `utf8mb4` / `utf8mb4_unicode_ci` (connexion et base de test) | tous les caractères Unicode ; insensible à la casse et aux accents pour les comparaisons |
-| CORS | `django-cors-headers` | liste blanche explicite |
-| Configuration | `django-environ` | lecture des variables d'environnement et de `DATABASE_URL` |
+| CORS / configuration | `django-cors-headers` (liste blanche) ; `django-environ` (variables d'environnement, `DATABASE_URL`) | aucun secret dans le code |
 | Fichiers statiques | WhiteNoise | fonctionne avec Passenger sans configuration Apache |
-| Cache | **cache en base de données** (`lifetrack_cache`) | un cache mémoire n'est pas partagé entre les processus Passenger |
-| Montants | `DecimalField(max_digits=15, decimal_places=2)` + code devise ISO 4217 | précision exacte ; le XOF est affiché sans décimales |
+| Cache | cache en base de données (`lifetrack_cache`) | un cache mémoire n'est pas partagé entre les processus Passenger |
+| Montants | `DecimalField(max_digits=15, decimal_places=2)` + code devise ISO 4217 | précision exacte ; montants de devises différentes jamais additionnés |
 | Identifiants | UUID pour les objets exposés par l'API | évite l'énumération des identifiants |
-| Dates | `USE_TZ=True`, stockage UTC, fuseau par défaut `Africa/Lome` (UTC+0, sans accent : nom IANA), modifiable par utilisateur | respect des fuseaux horaires |
+| Dates | `USE_TZ=True`, stockage UTC, fuseau par utilisateur (`Africa/Lome` par défaut) | semaines et mois calculés dans le fuseau de l'utilisateur |
+| SDK mobile | **Expo SDK 58** (React Native 0.88, React 19.3), Node ≥ 22.13 | compatible avec Expo Go |
+| Navigation | Expo Router, onglets natifs (`expo-router/native-tabs`) | API officielle du SDK ; Android limite la barre à 5 onglets |
+| Composants | **React Native Paper** 5 (Material Design 3) + `@expo/vector-icons` | thèmes clair et sombre, composants accessibles |
+| Données serveur / formulaires | TanStack Query ; React Hook Form + Zod | cache et invalidation ; validation avant envoi |
 | Jetons côté mobile | `expo-secure-store` | stockage chiffré par le système |
-| SDK mobile | **Expo SDK 58** (React Native 0.88.1, React 19.3), Node ≥ 22.13 | dernière version au 30/10/2026 ; compatible avec Expo Go |
-| Navigation | Expo Router, onglets natifs (`expo-router/native-tabs`) | API officielle du SDK 58 ; Android limite la barre à 5 onglets |
-| Bibliothèque de composants | **React Native Paper** 5 (Material Design 3) + `@expo/vector-icons` (icônes Material Community utilisées par Paper) | thèmes clair et sombre, composants accessibles |
-| Identité visuelle | vert émeraude de l'icône (`#14745C`), accent orangé, cartes arrondies (24 px), fonds teintés ; composants `Screen`, `SectionCard`, `IconBadge`, `AuthShell` | rendu cohérent entre les écrans, défini une seule fois dans `src/theme/` et `src/components/` |
-| Sélecteur de date | `@react-native-community/datetimepicker` (phase 7) | sélecteur natif recommandé par Expo, inclus dans Expo Go ; dialogue natif sur Android, compact sur iOS |
-| Graphiques | **react-native-gifted-charts** 1.4 (installée en phase 11b avec `npx expo install`, avec `react-native-svg` et `expo-linear-gradient`, compatibles Expo Go) | `victory-native` 43 exige Skia ≥ 2.15.1, alors que le SDK 58 fournit la 2.14.0 |
-| Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | demande de l'utilisateur |
+| Graphiques | `react-native-gifted-charts` (avec `react-native-svg`, `expo-linear-gradient`) | compatible Expo Go ; `victory-native` exige une version de Skia absente du SDK 58 |
+| Identité visuelle | vert émeraude (`#14745C`), accent orangé, cartes arrondies, fonds teintés | défini une seule fois dans `src/theme/` et `src/components/` |
+| Nom de l'application | **LifeTracker** (le projet et l'API gardent le nom technique « lifetrack ») | choix de l'utilisateur |
 | Installation des paquets | toujours `npx expo install <paquet>` | choisit les versions compatibles avec le SDK |
 
-## 3. Arborescence cible
+## 3. Arborescence
 
 ```
 lifetrack/
-├── .editorconfig  .gitattributes  .gitignore  README.md  CLAUDE.md
-├── docs/
+├── .github/workflows/backend.yml  # CI du backend (SQLite + MariaDB)
+├── docs/                          # architecture, API, base de données, déploiement
 ├── backend/
 │   ├── manage.py
 │   ├── passenger_wsgi.py          # point d'entrée Passenger → config.wsgi.application
 │   ├── conftest.py                # fixtures pytest communes
 │   ├── requirements.in            # dépendances directes de production
-│   ├── requirements.txt           # versions figées (générées pour Linux / Python 3.12)
-│   ├── requirements-dev.txt       # -r requirements.txt + outils de test et de qualité
+│   ├── requirements.txt           # versions figées (Linux / Python 3.12)
+│   ├── requirements-dev.txt       # + outils de test et de qualité
 │   ├── pyproject.toml             # configuration ruff et pytest
-│   ├── .env.example
+│   ├── .env.example               # variables d'environnement, sans valeurs réelles
 │   ├── config/
-│   │   ├── settings/
-│   │   │   ├── base.py            # commun
-│   │   │   ├── dev.py             # SQLite, DEBUG
-│   │   │   ├── test.py            # tests (rapides, hachage simplifié)
-│   │   │   └── prod.py            # MariaDB, sécurité HTTPS, DEBUG=False
-│   │   ├── urls.py                # /api/v1/, /api/schema/, /api/docs/
+│   │   ├── settings/              # base.py, dev.py (SQLite), test.py, prod.py (MariaDB, HTTPS)
+│   │   ├── urls.py                # /api/v1/…, /api/schema/, /api/docs/, /api/redoc/
 │   │   └── wsgi.py
-│   └── apps/                      # chaque app est créée à sa phase
-│       ├── core/                  # éléments transverses : santé, pagination, api.py (isolation par utilisateur), periods.py (périodes et fuseaux)
-│       ├── users/                 # phase 2
-│       ├── finance/               # phases 3-4, 8
-│       ├── workouts/              # phase 9
-│       ├── body_metrics/          # phase 11a : types de mesure, mesures, séries
-│       └── dashboard/             # phase 12a : GET /dashboard/ (aucun modèle)
+│   └── apps/
+│       ├── core/                  # santé, pagination, api.py (isolation par utilisateur), periods.py (périodes et fuseaux)
+│       ├── users/                 # utilisateur, inscription, connexion JWT, profil
+│       ├── finance/               # comptes, catégories, transactions, transferts, budgets, objectifs d'épargne, statistiques
+│       ├── workouts/              # activités, séances, objectifs sportifs, statistiques et historique
+│       ├── body_metrics/          # types de mesure, mesures, séries
+│       └── dashboard/             # GET /dashboard/ (aucun modèle)
 └── mobile/                        # application « LifeTracker » (Expo SDK 58)
     ├── app.json                   # nom, icônes, écran de démarrage
+    ├── eas.json                   # profils de compilation EAS (APK)
+    ├── .env                       # EXPO_PUBLIC_API_URL (URL publique, aucun secret)
     ├── assets/images/             # icônes générées par tools/make_icons.py
     ├── tools/make_icons.py        # génération des icônes (Python + Pillow)
     ├── __tests__/                 # tests Jest
     └── src/
-        ├── app/                   # routes Expo Router (uniquement écrans et layouts)
-        │   ├── _layout.tsx        # fournisseurs (Paper, thème de navigation) + pile racine
-        │   ├── (tabs)/            # 5 onglets : index (Accueil), finances, sport, stats, profile
-        │   ├── (finance)/         # phases 7-8 : transactions, comptes, transferts, budgets, objectifs (goals), catégories
-        │   ├── (workouts)/        # phase 10 : sessions (start, new, [id], [id]/finish), activities, sport-goals
-        │   ├── (body)/            # phase 11b : measurements (index, [typeId], new, entry/[id])
+        ├── app/                   # routes Expo Router (écrans et layouts uniquement)
+        │   ├── _layout.tsx        # fournisseurs (Paper, Query, gestes) + gardes de navigation
+        │   ├── (tabs)/            # index (Accueil), finances, sport, stats, profile
+        │   ├── (finance)/         # transactions, accounts, transfers, budgets, goals, categories
+        │   ├── (workouts)/        # sessions (start, new, [id], [id]/finish), activities, sport-goals
+        │   ├── (body)/            # measurements (index, [typeId], new, entry/[id])
         │   └── (auth)/            # login, register
-        ├── api/                   # phase 6 : client HTTP unique, endpoints, jetons
-        ├── features/              # phases 6+ : profile/, finance/… (hooks TanStack Query, formulaires)
-        ├── components/            # composants réutilisables (Screen, SectionCard, EmptyState, DateField…)
-        ├── hooks/                 # hooks génériques (useDebouncedValue)
-        ├── lib/                   # domain-queries.ts : clés de cache et invalidation communes
-        ├── utils/                 # fonctions pures (dates calendaires)
-        ├── constants/             # constantes (définition des onglets…)
-        ├── schemas/               # phase 6 : schémas Zod
-        ├── theme/                 # thèmes clair et sombre (Paper + navigation)
-        └── types/                 # phase 6 : types des réponses de l'API
+        ├── api/                   # client HTTP unique, endpoints par domaine, types des réponses (types.ts)
+        ├── auth/                  # session (restauration, connexion, déconnexion)
+        ├── features/              # par domaine : requêtes TanStack Query, formulaires, cartes
+        ├── components/            # composants réutilisables (Screen, ListCard, EmptyState, charts/…)
+        ├── forms/                 # affichage des erreurs du backend sous les champs
+        ├── schemas/               # schémas Zod
+        ├── lib/                   # domain-queries.ts : clés de cache et invalidation
+        ├── hooks/  utils/  constants/  theme/
+        └── config.ts              # URL de l'API, délai des requêtes
 ```
 
-Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fichier de ce dossier en route.
+Seul le code des écrans va dans `src/app/` : Expo Router transforme chaque fichier de ce dossier en route. Les groupes `(finance)`, `(workouts)`, `(body)` n'apparaissent pas dans l'URL : les objectifs sportifs sont donc sous `/sport-goals`, `/goals` étant pris par les objectifs d'épargne.
 
-### Communication avec l'API (phase 6)
+## 4. Backend
+
+### Organisation d'une application Django
+
+```
+apps/<domaine>/
+├── models.py         # modèles et contraintes en base
+├── serializers.py    # validation des entrées, format des réponses
+├── views.py          # vues fines : validation → service ou sélecteur → réponse
+├── urls.py
+├── services.py       # écritures et règles métier (transactions atomiques)
+├── selectors.py      # lectures et calculs (soldes, statistiques, progression)
+├── filters.py        # filtres des listes
+├── defaults.py       # données initiales (catégories, activités, types de mesure)
+├── signals.py        # création des données initiales d'un nouvel utilisateur
+├── admin.py
+└── tests/
+```
+
+### Principes
+
+| Principe | Mise en œuvre |
+|---|---|
+| Isolation | `core.api.UserOwnedViewSet` : chaque requête est limitée aux objets de l'utilisateur ; un objet d'un autre utilisateur renvoie **404**. Les clés étrangères passent par `OwnedPrimaryKeyRelatedField` |
+| Suppression d'un objet utilisé | `on_delete=RESTRICT` ; l'API renvoie **409** et propose de désactiver ou d'archiver (catégorie, compte, activité, type de mesure) |
+| Calculs | dans `selectors.py`, recalculés à chaque lecture (soldes, consommation des budgets, progression des objectifs, statistiques) ; un nombre de requêtes SQL constant par liste |
+| Périodes | `core.periods` : semaine ISO (lundi-dimanche), mois et année calendaires, dans le fuseau de l'utilisateur ; paramètre `?date=` pour la date de référence |
+| Contraintes conditionnelles | MariaDB ne gère pas les contraintes d'unicité conditionnelles : elles sont vérifiées par les serializers (budget global, séance en cours unique…) |
+| Tableau de bord | `dashboard/selectors.py` assemble les calculs existants des autres domaines, sans les dupliquer |
+
+## 5. Application mobile
+
+### Communication avec l'API
 
 | Élément | Choix |
 |---|---|
 | URL de l'API | `EXPO_PUBLIC_API_URL` dans `mobile/.env` (production, commité) ; `mobile/.env.local` (ignoré) pour pointer ailleurs |
 | Client HTTP | `src/api/client.ts`, basé sur `fetch` : seul endroit qui connaît les URL ; délai maximal de 20 s |
-| Jeton `access` | en mémoire uniquement |
-| Jeton `refresh` | `expo-secure-store` (stockage chiffré du système) |
+| Jetons | `access` en mémoire ; `refresh` dans `expo-secure-store` |
 | Renouvellement | sur un 401 : **un seul** renouvellement partagé entre les requêtes simultanées, puis une seule nouvelle tentative ; un second échec déconnecte (pas de boucle) |
-| Session | `src/auth/auth-context.tsx` : restaurée au démarrage depuis le jeton chiffré ; l'écran de démarrage reste affiché pendant la vérification |
-| Garde de navigation | `Stack.Protected` : onglets réservés aux utilisateurs connectés, écrans d'accès aux autres |
-| Données serveur | TanStack Query ; cache entièrement vidé à la déconnexion |
-| Formulaires | React Hook Form + Zod (`src/schemas/`) ; les erreurs du backend s'affichent sous les champs (`src/forms/api-errors.ts`) |
+| Session | restaurée au démarrage depuis le jeton chiffré ; l'écran de démarrage reste affiché pendant la vérification |
+| Garde de navigation | `Stack.Protected` : écrans de l'application réservés aux utilisateurs connectés, écrans d'accès aux autres |
+| Formulaires | React Hook Form + Zod ; les erreurs du backend s'affichent sous les champs (`src/forms/api-errors.ts`) |
 | Erreurs | `ApiError` (réponse en échec, avec erreurs par champ) et `NetworkError` (serveur injoignable) |
 
-### Écrans financiers (phase 7)
+### Cache et invalidation
 
-| Élément | Choix |
+- Clés : `[domaine, objet, 'list' | 'detail', …]` (`finance`, `workouts`, `body`) et `['dashboard']`.
+- Une écriture n'est considérée réussie qu'après la réponse du backend. Elle invalide alors **tout son domaine** (une transaction change soldes, budgets et objectifs) et le **tableau de bord**. Les listes affichées sont rechargées ; les détails sont seulement marqués périmés, ce qui évite un 404 sur un objet supprimé.
+- Une modification du profil (devise, fuseau) invalide tout le cache, sauf le profil lui-même. La déconnexion vide le cache.
+
+### Montants et dates
+
+- Les montants restent des **chaînes décimales exactes** entre l'API et les formulaires ; la conversion en nombre ne sert qu'à l'affichage.
+- Les dates `YYYY-MM-DD` sont calculées dans le fuseau du téléphone (`src/utils/dates.ts`), jamais via `toISOString()` (UTC). Les séances sont stockées en UTC et affichées dans le fuseau du téléphone.
+
+### Écrans
+
+| Écran | Contenu |
 |---|---|
-| Montants | chaînes décimales exactes de l'API jusqu'au formulaire (`normalizeAmountInput` : « 12 500 » ou « 12,50 » → `"12500"`, `"12.50"`) ; conversion en nombre **pour l'affichage uniquement** |
-| Dates | `YYYY-MM-DD` calculées dans le fuseau du téléphone (`src/utils/dates.ts`), jamais via `toISOString()` (UTC) |
-| Liste des transactions | `useInfiniteQuery` (20 par page), sections par jour quand le tri est par date ; filtres envoyés au backend (`search` temporisé à 400 ms, `type`, `category`, `date_after`/`date_before`, `ordering`) |
-| Cache | clés `['finance', objet, 'list' \| 'detail', …]` ; voir « Invalidation » ci-dessous (phase 8b) |
-| Historique | une catégorie désactivée ou un compte archivé restent proposés uniquement pour la transaction qui les utilise déjà, comme le backend l'autorise |
-| Suppression d'une catégorie utilisée | le 409 du backend est affiché et l'écran propose de la désactiver |
-| Comptes | gestion complète en phase 8b |
+| Accueil | une seule requête `GET /dashboard/` : séance en cours, solde estimé des comptes actifs et bilan du mois, budgets, sport du mois, objectifs sportifs, dernières transactions et séances ; un état vide par bloc avec une action |
+| Finances | transactions (recherche, filtres, tri, pagination), comptes, transferts, budgets, objectifs d'épargne, catégories |
+| Sport | séance en cours (chronomètre, **glisser pour terminer**), résumé de la semaine ou du mois, objectifs, historique filtrable par activité ; séances passées, activités, objectifs sportifs |
+| Statistiques | revenus et dépenses sur 6 mois, répartition du mois par catégorie, activité sportive sur 8 semaines ou 6 mois, courbe d'une mesure corporelle |
+| Mesures corporelles | types de mesure (dernière valeur), courbe sur 6 mois, historique ; une valeur par type et par jour |
+| Profil | informations, devise, fuseau, mot de passe, suppression du compte, déconnexion |
 
-### Comptes, transferts, budgets et objectifs (phase 8b)
+Chaque écran gère le chargement, l'erreur réseau (« Réessayer »), les erreurs de validation et l'absence de données.
 
-| Élément | Choix |
-|---|---|
-| Accès | rangée de raccourcis en haut de l'onglet Finances (Comptes, Budgets, Objectifs, Catégories) ; transferts depuis l'écran Comptes |
-| Écrans | `(finance)/accounts`, `transfers`, `budgets`, `goals` : liste, `new`, `[id]` (modification et suppression) |
-| Chiffres affichés | soldes, consommation des budgets et progression des objectifs **tels que renvoyés par le backend** ; l'application n'additionne ni ne recalcule aucun montant |
-| Invalidation | toute écriture financière invalide toutes les données `['finance', …]` : les listes affichées sont rechargées, les détails sont seulement marqués périmés (rechargés à leur prochaine ouverture, donc pas de 404 sur un objet supprimé) ; une transaction modifie en effet soldes, budgets et objectifs |
-| Refus 409 | compte utilisé : le dialogue de suppression propose « Archiver » |
-| Objectifs | un compte déjà rattaché à un objectif n'est pas proposé ; bouton « Épargner » = transfert prérempli vers le compte de l'objectif |
-| Composants partagés | `ListCard`, `ProgressMeter`, `ConfirmDialog`, `QueryStatus`, `FormAmountInput` (montant signé possible pour le solde initial) |
+### Graphiques
 
-### Structure type d'une application Django
+- Toutes les valeurs viennent du backend ; `features/stats/chart-data.ts` ne fait que les convertir pour l'affichage et choisir les libellés.
+- 5 couleurs de série en ordre fixe (`components/charts/chart-theme.ts`), vérifiées pour le daltonisme sur les fonds clair et sombre ; chaque graphique écrit aussi ses valeurs en clair (légende, panneau de détail).
+- Au-delà de 5 catégories, les plus petites sont regroupées dans « Autres ».
+- Courbe d'une mesure : seules les valeurs saisies sont tracées (aucune interpolation), à intervalles réguliers (un point par mesure) ; l'axe vertical ne part pas de 0.
 
-```
-apps/<domaine>/
-├── models.py
-├── serializers.py
-├── views.py          # vues fines : validation → service → réponse
-├── urls.py
-├── permissions.py
-├── services.py       # écritures et règles métier (transactions atomiques)
-├── selectors.py      # lectures et calculs (statistiques, soldes)
-├── filters.py
-├── admin.py
-└── tests/
-    ├── factories.py
-    ├── test_models.py
-    ├── test_services.py
-    ├── test_api.py
-    └── test_isolation.py
-```
+### Barre de navigation
 
-## 4. Conventions
+Icône en contour au repos et pleine sur l'onglet actif, sur une pastille Material 3. Android : `MaterialCommunityIcons` ; iOS : SF Symbols. Les noms sont dans `src/constants/tabs.ts`.
 
-### Code
+## 6. Conventions
 
-- **Python** : PEP 8, `ruff check` et `ruff format`, longueur de ligne 100.
-- La logique métier va dans `services.py` et `selectors.py`, pas dans les vues ni les serializers.
-- Chaque queryset de données privées est filtré par `request.user`. Un objet d'un autre utilisateur renvoie **404**, sans révéler son existence.
+- **Python** : PEP 8, `ruff check` et `ruff format`, lignes de 100 caractères. La logique métier va dans `services.py` et `selectors.py`, pas dans les vues.
 - **TypeScript** : mode `strict`, ESLint (`expo lint`) et Prettier. Aucune URL d'API dans les composants.
-- Les commentaires et la documentation sont en français ; les identifiants de code sont en anglais.
+- Commentaires et documentation en français ; identifiants de code en anglais.
+- **Configuration** : secrets lus uniquement depuis l'environnement (`backend/.env` en local, ignoré par Git ; variables de Setup Python App en production). `.env.example` liste toutes les variables, sans valeurs réelles.
+- **Tests** : backend `pytest` + `pytest-django` + `factory_boy`, avec des tests d'isolation entre utilisateurs dans chaque domaine ; mobile Jest (`jest-expo`) + React Native Testing Library.
+- **Git** : commits du type `feat(finance): …`, `fix(users): …`, `docs: …` ; une branche par évolution, fusionnée dans `main` après validation.
 
-### Configuration
+## 7. Points d'attention
 
-- Les secrets ne sont lus que depuis l'environnement : fichier `backend/.env` en local (ignoré par Git), variables de Setup Python App en production.
-- `DJANGO_SETTINGS_MODULE` sélectionne `config.settings.dev`, `test` ou `prod`.
-- `.env.example` liste toutes les variables, sans valeurs réelles.
-
-### Tests
-
-- **Backend** : `pytest` + `pytest-django` + `factory_boy`. Chaque domaine possède des tests d'isolation entre utilisateurs.
-- **Mobile** : Jest (`jest-expo`) + React Native Testing Library.
-- Une phase n'est pas déclarée terminée si un test échoue.
-
-### Git
-
-- Messages de commit du type `feat(finance): ajout des transferts`, `fix(users): …`, `docs: …`, `test: …`.
-- Une branche par phase (`phase-1-django-init`, …), fusionnée dans `main` après validation.
-
-### Écrans sportifs (phase 10)
-
-| Élément | Choix |
-|---|---|
-| Onglet Sport | résumé de la semaine ou du mois (`/workouts/stats/`), séance en cours, deux objectifs en cours, historique des séances **terminées** groupé par jour local, filtrable par activité |
-| Séance en cours | carte avec chronomètre ; **glisser vers la droite** (`ReanimatedSwipeable`, `GestureHandlerRootView` à la racine) ou bouton « Terminer » → formulaire de fin |
-| Formulaire de fin | durée proposée = temps écoulé (modifiable ; rien de proposé au-delà de 24 h), intensité, distance (si l'activité la mesure), calories **estimées**, notes |
-| Ajout | bouton « + » : « Démarrer une séance » (masqué si une séance est en cours) ou « Ajouter une séance passée » |
-| Routes | `/sport-goals` pour les objectifs sportifs : les groupes `(finance)` et `(workouts)` n'apparaissent pas dans l'URL, et `/goals` est déjà pris par les objectifs d'épargne |
-| Cache | `lib/domain-queries.ts`, partagé avec les finances : toute écriture invalide `['workouts', …]` |
-| Dates | les séances sont stockées en UTC et affichées dans le fuseau du téléphone ; les périodes des statistiques sont calculées par le backend dans le fuseau du profil |
-| Erreurs du backend | `renameFieldErrors` relie `duration_seconds`, `distance_km`… aux champs du formulaire ; une erreur sur un champ absent (ex. `status`) devient le message général, avec son texte |
-
-**Types des routes (`.expo/types/router.d.ts`)** : ce fichier est généré par `npx expo start`. Au démarrage, Expo écrit un fichier **complet** ; ensuite, à chaque fichier modifié, le serveur en cours le réécrit dans une version **incomplète** : les routes `index` n'y figurent qu'avec le suffixe `/index` (`/measurements/index`), et `tsc` refuse alors `/measurements`, `/sport-goals` ou `/sessions/[id]`. Ne pas supprimer le fichier : relancer `npx expo start` (ou arrêter le serveur), attendre quelques secondes, puis `npm run typecheck`.
-
-### Barre de navigation (phase 11a)
-
-Icône **en contour** au repos et **pleine** sur l'onglet actif, posée sur une pastille `secondaryContainer` (Material 3). Android : `MaterialCommunityIcons` via `NativeTabs.Trigger.VectorIcon`, les mêmes icônes que le reste de l'application ; iOS : SF Symbols. Les noms sont dans `src/constants/tabs.ts`.
-
-### Statistiques et mesures corporelles (phase 11b)
-
-| Élément | Choix |
-|---|---|
-| Onglet Statistiques | revenus et dépenses des 6 derniers mois (barres groupées), répartition du mois par catégorie (anneau + légende), activité sportive (8 semaines ou 6 mois, durée ou séances), courbe d'une mesure corporelle ; tirer pour rafraîchir invalide les domaines `finance`, `workouts` et `body` |
-| Données | toutes calculées par le backend (`/finance/stats/…`, `/workouts/stats/history/`, `/body/metric-types/{id}/series/`) ; `features/stats/chart-data.ts` ne fait que convertir en nombres pour l'affichage et choisir les libellés (testable sans React) |
-| Couleurs | 5 couleurs de série en ordre fixe (`components/charts/chart-theme.ts`), vérifiées pour le daltonisme sur les surfaces claire et sombre ; « Autres » en gris neutre. Trois couleurs contrastent peu sur fond blanc : chaque graphique affiche les montants en clair (légende, panneau de détail) |
-| Interaction | toucher un mois ou une semaine affiche ses valeurs exactes ; la période en cours est sélectionnée par défaut |
-| États | chargement, erreur réseau (« Réessayer ») et absence de données gérés par `components/charts/chart-card.tsx` ; aucune valeur inventée |
-| Catégories | au-delà de 5 catégories, les plus petites sont regroupées dans « Autres (n) » (total exact au centime) |
-| Courbe d'une mesure | seules les valeurs saisies sont tracées (aucune interpolation) ; les points sont **équidistants** (un par mesure) : l'axe horizontal n'est pas proportionnel au temps. L'axe vertical ne part pas de 0 (un poids de 72 kg serait illisible) |
-| Mesures corporelles | groupe `(body)` : `/measurements` (types, dernière valeur), `/measurements/[typeId]` (courbe 6 mois + historique paginé), `/measurements/new?type=…`, `/measurements/entry/[id]` (modifier, supprimer). Une valeur par type et par jour : le refus du backend s'affiche sur le champ Date. L'unité est verrouillée dans le formulaire dès qu'une valeur existe |
-| Accessibilité | chaque graphique a une description textuelle de ses valeurs ; l'identité des séries n'est jamais portée par la couleur seule |
+- **Types des routes (`.expo/types/router.d.ts`)** : généré par `npx expo start`. Au démarrage, le fichier est complet ; ensuite, à chaque modification, le serveur le réécrit dans une version incomplète (les routes `index` n'y figurent qu'avec le suffixe `/index`) et `tsc` refuse alors `/measurements` ou `/sport-goals`. Ne pas supprimer le fichier : relancer `npx expo start`, attendre quelques secondes, puis `npm run typecheck`.
+- **Nouvelle dépendance native** : après un `npx expo install`, redémarrer Expo avec `--clear` et fermer complètement Expo Go ; sinon les modules sont rechargés à chaud dans l'application ouverte (erreur « Tried to register two views with the same name »).

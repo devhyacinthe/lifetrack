@@ -1,27 +1,30 @@
-import { type Href, router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-import { Icon, Surface, Text, TouchableRipple, useTheme } from 'react-native-paper';
+import { router } from 'expo-router';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ComingSoon } from '@/components/coming-soon';
-import { IconBadge } from '@/components/icon-badge';
-import { Screen } from '@/components/screen';
+import { errorMessage } from '@/api/errors';
+import { EmptyState } from '@/components/empty-state';
+import { ListCard } from '@/components/list-card';
+import { BalanceHero } from '@/features/dashboard/balance-hero';
+import { DashboardSection } from '@/features/dashboard/dashboard-section';
+import { useDashboard } from '@/features/dashboard/queries';
+import { SportSummary } from '@/features/dashboard/sport-summary';
+import { BudgetCard } from '@/features/finance/budget-card';
+import { TransactionItem } from '@/features/finance/transaction-item';
 import { useMe } from '@/features/profile/queries';
+import { OngoingSessionCard } from '@/features/workouts/ongoing-session-card';
+import { SessionItem } from '@/features/workouts/session-item';
+import { WorkoutGoalCard } from '@/features/workouts/workout-goal-card';
 
-/** Raccourcis vers les autres onglets (navigation uniquement, aucune donnée affichée). */
-const SHORTCUTS = [
-  { href: '/finances', icon: 'wallet-outline', label: 'Finances', tone: 'primary' },
-  { href: '/sport', icon: 'run', label: 'Sport', tone: 'tertiary' },
-  { href: '/stats', icon: 'chart-box-outline', label: 'Statistiques', tone: 'secondary' },
-] as const satisfies readonly {
-  href: Href;
-  icon: string;
-  label: string;
-  tone: 'primary' | 'secondary' | 'tertiary';
-}[];
+/** Nombre de budgets et d'objectifs affichés sur l'accueil (les autres : « Tout voir »). */
+const BUDGETS_PREVIEW = 3;
+const GOALS_PREVIEW = 2;
 
 export default function HomeScreen() {
   const { colors } = useTheme();
   const me = useMe();
+  const dashboard = useDashboard();
   const firstName = me.data?.first_name;
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -29,55 +32,144 @@ export default function HomeScreen() {
     month: 'long',
   });
 
-  return (
-    <Screen
-      overline={today.charAt(0).toUpperCase() + today.slice(1)}
-      title={firstName ? `Bonjour, ${firstName}` : 'Bonjour'}
-      subtitle="Voici votre espace LifeTracker.">
-      <View style={styles.shortcuts}>
-        {SHORTCUTS.map((item) => (
-          <Surface
-            key={item.href}
-            elevation={0}
-            style={[
-              styles.tile,
-              { backgroundColor: colors.surface, borderColor: colors.outlineVariant },
-            ]}>
-            <TouchableRipple
-              onPress={() => router.navigate(item.href)}
-              accessibilityRole="button"
-              accessibilityLabel={`Ouvrir ${item.label}`}
-              borderless
-              style={styles.tileRipple}>
-              <View style={styles.tileContent}>
-                <IconBadge icon={item.icon} tone={item.tone} size={40} />
-                <View style={styles.tileFooter}>
-                  <Text variant="labelLarge" numberOfLines={1} style={styles.tileLabel}>
-                    {item.label}
-                  </Text>
-                  <Icon source="chevron-right" size={18} color={colors.onSurfaceVariant} />
-                </View>
-              </View>
-            </TouchableRipple>
-          </Surface>
-        ))}
-      </View>
+  const header = (
+    <View style={styles.header}>
+      <Text variant="labelLarge" style={{ color: colors.primary }}>
+        {today.charAt(0).toUpperCase() + today.slice(1)}
+      </Text>
+      <Text variant="headlineLarge" accessibilityRole="header">
+        {firstName ? `Bonjour, ${firstName}` : 'Bonjour'}
+      </Text>
+    </View>
+  );
 
-      <ComingSoon
-        icon="view-dashboard-outline"
-        title="Tableau de bord"
-        description="Revenus et dépenses de la période, solde estimé, budgets, séances et dernières opérations."
-        phase={12}
+  let body;
+  if (dashboard.isPending) {
+    body = (
+      <ActivityIndicator style={styles.loader} accessibilityLabel="Chargement du tableau de bord" />
+    );
+  } else if (dashboard.isError) {
+    body = (
+      <EmptyState
+        icon="wifi-alert"
+        tone="error"
+        title="Tableau de bord indisponible"
+        message={errorMessage(dashboard.error)}
+        actionLabel="Réessayer"
+        onAction={() => dashboard.refetch()}
       />
-    </Screen>
+    );
+  } else {
+    const data = dashboard.data;
+    body = (
+      <>
+        {data.ongoing_session ? <OngoingSessionCard session={data.ongoing_session} /> : null}
+
+        <BalanceHero dashboard={data} />
+
+        <DashboardSection
+          title="Budgets"
+          href="/budgets"
+          isEmpty={data.budgets.length === 0}
+          emptyMessage="Aucun budget : fixez une limite de dépenses par mois ou par catégorie."
+          emptyAction={{ label: 'Créer', href: '/budgets/new' }}>
+          {data.budgets.slice(0, BUDGETS_PREVIEW).map((budget) => (
+            <BudgetCard
+              key={budget.id}
+              budget={budget}
+              onPress={() => router.push({ pathname: '/budgets/[id]', params: { id: budget.id } })}
+            />
+          ))}
+        </DashboardSection>
+
+        <DashboardSection title="Sport ce mois-ci" href="/sport" isEmpty={false}>
+          <SportSummary stats={data.workouts} />
+        </DashboardSection>
+
+        <DashboardSection
+          title="Objectifs sportifs"
+          href="/sport-goals"
+          isEmpty={data.workout_goals.length === 0}
+          emptyMessage="Aucun objectif : par exemple 3 séances par semaine."
+          emptyAction={{ label: 'Créer', href: '/sport-goals/new' }}>
+          {data.workout_goals.slice(0, GOALS_PREVIEW).map((goal) => (
+            <WorkoutGoalCard
+              key={goal.id}
+              goal={goal}
+              onPress={() =>
+                router.push({ pathname: '/sport-goals/[id]', params: { id: goal.id } })
+              }
+            />
+          ))}
+        </DashboardSection>
+
+        <DashboardSection
+          title="Dernières transactions"
+          href="/finances"
+          isEmpty={data.latest_transactions.length === 0}
+          emptyMessage="Aucune transaction enregistrée."
+          emptyAction={{ label: 'Ajouter', href: '/transactions/new' }}>
+          <ListCard>
+            {data.latest_transactions.map((tx) => (
+              <TransactionItem
+                key={tx.id}
+                transaction={tx}
+                showDate
+                onPress={() =>
+                  router.push({ pathname: '/transactions/[id]', params: { id: tx.id } })
+                }
+              />
+            ))}
+          </ListCard>
+        </DashboardSection>
+
+        <DashboardSection
+          title="Dernières séances"
+          href="/sport"
+          isEmpty={data.latest_sessions.length === 0}
+          emptyMessage="Aucune séance terminée."
+          emptyAction={{ label: 'Démarrer', href: '/sessions/start' }}>
+          <ListCard>
+            {data.latest_sessions.map((session) => (
+              <SessionItem
+                key={session.id}
+                session={session}
+                showDate
+                onPress={() =>
+                  router.push({ pathname: '/sessions/[id]', params: { id: session.id } })
+                }
+              />
+            ))}
+          </ListCard>
+        </DashboardSection>
+      </>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={dashboard.isRefetching}
+            onRefresh={() => void dashboard.refetch()}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
+        {header}
+        {body}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  shortcuts: { flexDirection: 'row', gap: 12 },
-  tile: { flex: 1, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
-  tileRipple: { borderRadius: 20 },
-  tileContent: { padding: 14, gap: 14 },
-  tileFooter: { flexDirection: 'row', alignItems: 'center' },
-  tileLabel: { flex: 1 },
+  safeArea: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32, gap: 20 },
+  header: { gap: 4 },
+  loader: { marginTop: 48 },
 });

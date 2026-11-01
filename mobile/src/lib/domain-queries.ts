@@ -26,7 +26,13 @@ export function createDomainKeys<Entity extends string>(domain: string): DomainK
 
 const isDetailKey = (key: QueryKey) => key[2] === 'detail';
 
-/** Mutation qui, une fois confirmée par le backend, invalide tout le domaine. */
+/**
+ * Tableau de bord de l'accueil : il agrège plusieurs domaines (finances, sport), il est
+ * donc invalidé après toute écriture, quel que soit le domaine.
+ */
+export const DASHBOARD_KEY = ['dashboard'] as const;
+
+/** Mutation qui, une fois confirmée par le backend, invalide tout le domaine et l'accueil. */
 export function useDomainMutation<Entity extends string, TVariables, TData>(
   keys: DomainKeys<Entity>,
   entity: Entity,
@@ -51,6 +57,7 @@ export function useDomainMutation<Entity extends string, TVariables, TData>(
           predicate: (query) => isDetailKey(query.queryKey),
           refetchType: 'none',
         }),
+        queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY }),
       ]);
     },
   });

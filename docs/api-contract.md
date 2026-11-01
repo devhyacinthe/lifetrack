@@ -1,6 +1,6 @@
 # Contrat de l'API
 
-> Aucun endpoint n'existe encore. Ce document fixe les conventions, qui s'appliqueront dès la phase 1. Les endpoints seront ajoutés au fil des phases.
+> Référence de l'API REST du backend. Le schéma OpenAPI complet et à jour est servi par le backend (`/api/schema/`, Swagger UI sur `/api/docs/`).
 
 ## 1. Conventions générales
 
@@ -31,7 +31,7 @@
 | 429 | Trop de tentatives | `{ "detail": "…" }` |
 | 500 | Erreur serveur | message générique, sans détail interne |
 
-## 3. Endpoints techniques prévus (phase 1)
+## 3. Endpoints techniques
 
 | Méthode | URL | Description |
 |---|---|---|
@@ -40,9 +40,9 @@
 | GET | `/api/docs/` | interface Swagger UI |
 | GET | `/api/redoc/` | documentation ReDoc |
 
-En production, l'accès à `/api/docs/` et `/api/redoc/` pourra être désactivé ou réservé aux administrateurs. Cette décision sera prise en phase 14.
+La documentation (`/api/docs/`, `/api/redoc/`) est publique : elle ne contient aucune donnée, et tous les endpoints métier exigent un jeton.
 
-## 3 bis. Authentification (phase 2)
+## 4. Authentification
 
 Jetons JWT (SimpleJWT) :
 
@@ -86,7 +86,7 @@ Règles :
 - **Limitation des tentatives :** 5 requêtes par minute et par adresse IP sur `login/`, et 10 par heure sur `register/`. Au-delà, la réponse est **429**. Toutes les tentatives sont comptées, réussies ou non.
 - Un jeton d'un compte désactivé ou supprimé est refusé (401).
 
-## 3 ter. Finances (phase 4)
+## 5. Finances
 
 Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utilisateur connecté** : l'objet d'un autre utilisateur renvoie 404, et son identifiant utilisé dans un corps de requête renvoie 400 `"Objet introuvable."`. Méthodes : `GET` (liste et détail), `POST`, `PATCH` et `DELETE` ; `PUT` n'est pas accepté.
 
@@ -152,7 +152,7 @@ Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utili
 - Un transfert ne crée ni revenu ni dépense : il modifie seulement les soldes des deux comptes.
 - Filtres : `account` (compte débité **ou** crédité), `date_after`, `date_before`. Recherche : `search`. Tri : `ordering=date|amount|created_at`.
 
-### Budgets : `/api/v1/finance/budgets/` (phase 8a)
+### Budgets : `/api/v1/finance/budgets/`
 
 ```json
 {
@@ -172,7 +172,7 @@ Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utili
 - Filtres : `period`, `currency`, `category`, `is_global`. Tri : `ordering=period|amount|created_at`.
 - Supprimer un budget ne supprime aucune transaction. Une catégorie utilisée par un budget ne peut pas être supprimée (**409**).
 
-### Objectifs d'épargne : `/api/v1/finance/goals/` (phase 8a)
+### Objectifs d'épargne : `/api/v1/finance/goals/`
 
 ```json
 {
@@ -191,7 +191,7 @@ Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utili
 - Recherche : `search` (nom). Tri : `ordering=name|deadline|target_amount|created_at`.
 - Un compte rattaché à un objectif ne peut pas être supprimé (**409**) ; supprimer l'objectif ne touche pas au compte.
 
-## 3 quater. Sport (phase 9)
+## 6. Sport
 
 Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre utilisateur introuvables (404), identifiant étranger dans un corps de requête refusé (400 `"Objet introuvable."`), pas de `PUT`.
 
@@ -216,7 +216,7 @@ Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre util
 }
 ```
 
-- **Statut** (phase 10) : `in_progress` (séance démarrée) ou `completed` (terminée, par défaut).
+- **Statut** : `in_progress` (séance démarrée) ou `completed` (terminée, par défaut).
   - **Démarrer** : `POST` avec `activity`, `started_at` et `"status": "in_progress"`. `duration_seconds`, `intensity`, `distance_km` et `estimated_calories` doivent rester vides (400 sinon). **Une seule séance en cours** par utilisateur (400 sur `status`).
   - **Séance passée** : `POST` sans statut (ou `completed`) ; `duration_seconds` (1 à 86 400) et `intensity` (1 à 10) sont alors obligatoires.
   - Le statut ne change pas par `PATCH` (400) : il faut l'action `finish`.
@@ -272,7 +272,7 @@ Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre util
 - `period` : `weekly` (par défaut) ou `monthly`. `date` : date de référence (aujourd'hui par défaut, dans le fuseau de l'utilisateur).
 - Une période sans séance renvoie des zéros et une liste `by_activity` vide.
 
-### Historique : `GET /api/v1/workouts/stats/history/?period=weekly&count=8&date=2026-10-15` (phase 11a)
+### Historique : `GET /api/v1/workouts/stats/history/?period=weekly&count=8&date=2026-10-15`
 
 ```json
 { "period": "weekly", "periods": [
@@ -287,7 +287,7 @@ Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre util
 - De la plus ancienne période à celle qui contient `date`. Par défaut : **8 semaines** ou **6 mois** ; `count` de 1 à 52.
 - Séances terminées seulement ; chaque séance est rangée selon sa date locale. Une période vide vaut zéro.
 
-## 3 quinquies. Statistiques financières (phase 11a)
+## 7. Statistiques financières
 
 Les montants de devises différentes ne s'additionnent pas : `currency` (par défaut, la devise préférée du profil) limite le calcul aux comptes de cette devise. Les transferts ne sont jamais comptés.
 
@@ -316,7 +316,7 @@ Les montants de devises différentes ne s'additionnent pas : `currency` (par dé
 - `type` : `expense` (par défaut) ou `income` ; `period` : `weekly`, `monthly` (par défaut) ou `yearly`.
 - Catégories triées du montant le plus élevé au plus faible ; `percent` arrondi à 0,1 % (la somme peut différer légèrement de 100).
 
-## 3 sexies. Mesures corporelles (phase 11a)
+## 8. Mesures corporelles
 
 ### Types de mesure : `/api/v1/body/metric-types/`
 
@@ -353,7 +353,7 @@ Les montants de devises différentes ne s'additionnent pas : `currency` (par dé
 - Du premier jour du mois situé `months − 1` mois avant `date` jusqu'à `date`. `months` : 1 à 60, 6 par défaut.
 - **Seules les valeurs enregistrées** : aucune interpolation. Sans mesure : `points` vide et résumé à `null`.
 
-## 3 septies. Tableau de bord (phase 12a)
+## 9. Tableau de bord
 
 ### `GET /api/v1/dashboard/?date=2026-10-15`
 
@@ -381,11 +381,11 @@ Les montants de devises différentes ne s'additionnent pas : `currency` (par dé
 - Les objets des listes ont **exactement les champs** des endpoints détaillés.
 - Utilisateur sans données : zéros et listes vides, aucune valeur inventée. Nombre de requêtes SQL constant (13, authentification comprise).
 
-## 4. Tester uniquement le backend avec Swagger et OpenAPI
+## 10. Tester le backend avec Swagger et OpenAPI
 
-Cette procédure permet de valider chaque phase backend **sans l'application mobile**.
+Cette procédure permet de vérifier le backend **sans l'application mobile**.
 
-### 4.1 Lancer le backend en local
+### 10.1 Lancer le backend en local
 
 ```bash
 cd backend
@@ -400,7 +400,7 @@ Ouvrir ensuite :
 - ReDoc : http://127.0.0.1:8000/api/redoc/
 - Schéma brut : http://127.0.0.1:8000/api/schema/
 
-### 4.2 S'authentifier dans Swagger
+### 10.2 S'authentifier dans Swagger
 
 1. Appeler `POST /api/v1/auth/register/` (*Try it out*) pour créer un compte de test.
 2. Appeler `POST /api/v1/auth/login/` et copier la valeur `access` de la réponse.
@@ -409,7 +409,7 @@ Ouvrir ensuite :
 
 Attention : après 5 connexions en une minute, `login/` répond 429. Il suffit d'attendre une minute.
 
-### 4.2 bis Parcours de vérification de l'authentification
+### 10.3 Parcours de vérification de l'authentification
 
 | # | Action | Résultat attendu |
 |---|---|---|
@@ -424,7 +424,7 @@ Attention : après 5 connexions en une minute, `login/` répond 429. Il suffit d
 | 9 | `me/password/` avec un mauvais `current_password` | 400 |
 | 10 | `me/delete/` avec le bon mot de passe | 204 ; `GET me/` renvoie ensuite 401 |
 
-### 4.3 Scénario de vérification de l'isolation des données
+### 10.4 Scénario de vérification de l'isolation des données
 
 1. Créer deux comptes, A et B.
 2. Avec le jeton de A, créer un objet (par exemple une transaction) et noter son `id`.
@@ -436,15 +436,15 @@ Attention : après 5 connexions en une minute, `login/` répond 429. Il suffit d
 
 Ce scénario manuel complète les tests automatisés d'isolation ; il ne les remplace pas.
 
-### 4.4 Valider le schéma OpenAPI
+### 10.5 Valider le schéma OpenAPI
 
 ```bash
 cd backend
 python manage.py spectacular --validate --fail-on-warn --file schema.yml
 ```
 
-La commande doit se terminer sans avertissement. Le fichier `schema.yml` généré peut aussi être importé dans Postman, Insomnia ou Bruno pour des tests manuels. Il sera aussi utilisé en phase 6 pour vérifier les types TypeScript du mobile.
+La commande doit se terminer sans avertissement. Le fichier `schema.yml` généré peut aussi être importé dans Postman, Insomnia ou Bruno pour des tests manuels. Les types TypeScript du mobile (`mobile/src/api/types.ts`) suivent ce schéma.
 
-### 4.5 Tester le backend déployé sur o2switch
+### 10.6 Tester le backend déployé sur o2switch
 
-Même procédure, avec `https://<domaine-api>/api/docs/` tant que la documentation est accessible en production. Ne pas utiliser de comptes contenant des données réelles pour ces essais.
+Même procédure, avec `https://<domaine-api>/api/docs/`. Ne pas utiliser de comptes contenant des données réelles pour ces essais.

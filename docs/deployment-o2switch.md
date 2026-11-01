@@ -1,6 +1,6 @@
 # Déploiement du backend sur o2switch
 
-> **État : phase 2 déployée et vérifiée le 30 octobre 2026** (authentification, première migration, compte administrateur). Le premier déploiement (phase 1b) couvrait l'endpoint de santé et la documentation OpenAPI. Les étapes marquées *(non testé)* n'ont pas encore été exécutées sur le serveur. La procédure de retour arrière sera testée en phase 14.
+> Le backend est déployé et en service à l'adresse ci-dessous. Les étapes marquées *(non testé)* n'ont pas été exécutées sur le serveur.
 
 Environnement de production :
 
@@ -117,7 +117,7 @@ CSRF_TRUSTED_ORIGINS=https://api.lifetrack.hyacinthe-dalmeida.com
 
 La liste complète des variables est dans `backend/.env.example`.
 
-**`DJANGO_SETTINGS_MODULE=config.settings.prod` est indispensable.** Passenger utilise toujours les paramètres de production. En revanche, sans cette ligne, les commandes `manage.py` lancées dans le Terminal utilisent les paramètres de **développement**. Incident constaté en phase 3 :
+**`DJANGO_SETTINGS_MODULE=config.settings.prod` est indispensable.** Passenger utilise toujours les paramètres de production. En revanche, sans cette ligne, les commandes `manage.py` lancées dans le Terminal utilisent les paramètres de **développement**. Incident constaté lors d'un déploiement :
 - `collectstatic` n'a pas généré le manifeste des fichiers statiques, et `/admin/` répondait 500 (`Missing staticfiles manifest entry`) ;
 - `check` signalait `mysql.W002` (mode strict absent).
 
@@ -130,7 +130,7 @@ python manage.py shell -c "from django.conf import settings; print(settings.SETT
 
 Deux variables doivent rester absentes :
 - `DJANGO_BEHIND_PROXY` : Passenger transmet correctement le HTTPS à Django (constaté, aucune boucle de redirection).
-- `DJANGO_NUM_PROXIES` : Django reçoit la véritable adresse IP du client dans `REMOTE_ADDR`. Constaté en phase 2 : après 6 connexions ratées depuis un téléphone en 4G, un PC sur une autre connexion pouvait toujours se connecter (limitation bien appliquée par IP).
+- `DJANGO_NUM_PROXIES` : Django reçoit la véritable adresse IP du client dans `REMOTE_ADDR`. Vérifié : après 6 connexions ratées depuis un téléphone en 4G, un PC sur une autre connexion pouvait toujours se connecter (limitation bien appliquée par IP).
 
 ### 3.7 Contrôles, fichiers statiques et démarrage
 
@@ -153,9 +153,9 @@ curl -s -o /dev/null -w "%{http_code}\n" $API/static/admin/css/base.css  # 200
 
 Puis ouvrir `https://api.lifetrack.hyacinthe-dalmeida.com/api/docs/` dans un navigateur.
 
-En phase 1b, la réponse de l'endpoint de santé a été vérifiée : `HTTP/2 200` avec `{"status":"ok","database":"ok"}`, et les en-têtes HSTS, `x-frame-options: DENY` et `x-content-type-options: nosniff` sont présents.
+Lors du premier déploiement, la réponse de l'endpoint de santé a été vérifiée : `HTTP/2 200` avec `{"status":"ok","database":"ok"}`, et les en-têtes HSTS, `x-frame-options: DENY` et `x-content-type-options: nosniff` sont présents.
 
-## 5. Mise à jour d'une version déployée *(non testé)*
+## 5. Mise à jour d'une version déployée
 
 ```bash
 source /home/vjdf1803/virtualenv/lifetrack/backend/3.12/bin/activate && cd /home/vjdf1803/lifetrack/backend
@@ -170,11 +170,11 @@ touch tmp/restart.txt
 
 Puis refaire les vérifications du §4.
 
-Les migrations sont toujours lancées **explicitement**, jamais automatiquement au démarrage. `python manage.py createcachetable` est à lancer une fois, lors du premier déploiement de la phase 2. La commande est sans effet si la table existe déjà.
+Les migrations sont toujours lancées **explicitement**, jamais automatiquement au démarrage. `python manage.py createcachetable` est à lancer une fois, lors du premier déploiement. La commande est sans effet si la table existe déjà.
 
-### Premier déploiement de la phase 2 (première migration)
+### Premier déploiement (base vide)
 
-La base était vide jusqu'ici. Ce déploiement crée toutes les tables, dont le modèle utilisateur personnalisé :
+Ce déploiement crée toutes les tables, dont le modèle utilisateur personnalisé :
 
 ```bash
 git pull
@@ -187,9 +187,9 @@ python manage.py check --deploy
 touch tmp/restart.txt
 ```
 
-### Conversion de l'encodage en `utf8mb4` (une seule fois, déploiement de la phase 4)
+### Conversion de l'encodage en `utf8mb4` (déjà faite)
 
-Les tables créées lors des phases 2 et 3 n'utilisaient pas l'encodage du projet : les commandes `manage.py` tournaient alors avec les paramètres de développement. La commande `convert_db_charset` aligne la base et toutes ses tables sur `utf8mb4` / `utf8mb4_unicode_ci`.
+Les premières tables ont été créées avec l'encodage par défaut du serveur, car les commandes `manage.py` tournaient alors avec les paramètres de développement. La commande `convert_db_charset` aligne la base et toutes ses tables sur `utf8mb4` / `utf8mb4_unicode_ci`.
 
 ```bash
 # 1. Sauvegarde obligatoire
@@ -205,6 +205,27 @@ python manage.py convert_db_charset
 
 La commande est sans effet si tout est déjà en `utf8mb4_unicode_ci`.
 
+### Repartir d'une base vide (supprimer toutes les données)
+
+`flush` vide **toutes** les tables (utilisateurs, transactions, séances, mesures, jetons) mais garde la structure et l'historique des migrations : aucune migration n'est à relancer. L'opération est irréversible : la sauvegarde est le seul retour possible.
+
+```bash
+source /home/vjdf1803/virtualenv/lifetrack/backend/3.12/bin/activate && cd /home/vjdf1803/lifetrack/backend
+
+# 1. Sauvegarde obligatoire
+mkdir -p ~/sauvegardes
+mariadb-dump --single-transaction -u <utilisateur_bdd> -p <nom_bdd> > ~/sauvegardes/lifetrack-avant-remise-a-zero-$(date +%F-%H%M).sql
+
+# 2. Suppression de toutes les données (répondre « yes »)
+python manage.py flush
+
+# 3. Nouveau compte administrateur, puis redémarrage
+python manage.py createsuperuser
+touch tmp/restart.txt
+```
+
+Chaque compte créé ensuite reçoit automatiquement ses catégories, son compte « Espèces », ses activités et ses types de mesure. Sur le téléphone, la session ouverte n'est plus valide : il faut se réinscrire.
+
 ## 6. Diagnostic
 
 - **Endpoint de santé :** un code 503 avec `"database":"unavailable"` signifie que la base est inaccessible. Vérifier `DATABASE_URL` et les privilèges de l'utilisateur.
@@ -212,7 +233,7 @@ La commande est sans effet si tout est déjà en `utf8mb4_unicode_ci`.
 - **Configuration :** `python manage.py check --deploy` dans l'environnement virtuel.
 - **Ne jamais activer `DEBUG=True` en production** pour diagnostiquer.
 
-## 7. Retour à une version précédente *(non testé, prévu en phase 14)*
+## 7. Retour à une version précédente *(non testé)*
 
 1. Sauvegarder la base avant chaque déploiement (voir §5).
 2. Dans `~/lifetrack` : `git checkout <tag-précédent>`.

@@ -4,20 +4,25 @@ import { Text, TouchableRipple, useTheme } from 'react-native-paper';
 import type { Workout } from '@/api/types';
 import { IconBadge } from '@/components/icon-badge';
 
-import { formatDistance, formatDuration, localTimeOf } from './format';
+import { dayLabel } from '@/utils/dates';
+
+import { formatDistance, formatDuration, localDateOf, localTimeOf } from './format';
 import { activityIcon, intensityLabel } from './labels';
 
 type SessionItemProps = {
   session: Workout;
   onPress: () => void;
+  /** Affiche le jour (listes non regroupées par date, ex. accueil). */
+  showDate?: boolean;
 };
 
 /** Ligne d'une séance : activité, heure, intensité, distance et durée. */
-export function SessionItem({ session, onPress }: SessionItemProps) {
+export function SessionItem({ session, onPress, showDate }: SessionItemProps) {
   const { colors } = useTheme();
   const duration =
     session.duration_seconds === null ? 'En cours' : formatDuration(session.duration_seconds);
   const details = [
+    showDate ? dayLabel(localDateOf(session.started_at)) : null,
     localTimeOf(session.started_at),
     session.intensity === null
       ? null
