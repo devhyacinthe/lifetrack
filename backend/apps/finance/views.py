@@ -1,14 +1,11 @@
-from django.db.models import RestrictedError
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiResponse,
-    extend_schema,
-    extend_schema_view,
+from drf_spectacular.utils import extend_schema, extend_schema_view
+
+from apps.core.api import (
+    CONFLICT_RESPONSE,
+    REFERENCE_DATE_PARAMETER,
+    ReferenceDateMixin,
+    UserOwnedViewSet,
 )
-from rest_framework import filters, serializers, status, viewsets
-from rest_framework.response import Response
 
 from .filters import (
     AccountFilter,
@@ -18,7 +15,7 @@ from .filters import (
     TransferFilter,
 )
 from .models import Account, Budget, Category, SavingsGoal, Transaction, Transfer
-from .selectors import accounts_with_balance, goals_with_progress, user_today
+from .selectors import accounts_with_balance, goals_with_progress
 from .serializers import (
     AccountSerializer,
     BudgetSerializer,
@@ -27,36 +24,6 @@ from .serializers import (
     TransactionSerializer,
     TransferSerializer,
 )
-
-CONFLICT_RESPONSE = OpenApiResponse(description="Objet utilisé par des opérations.")
-
-
-class UserOwnedViewSet(viewsets.ModelViewSet):
-    """
-    Base des ressources privées : chaque requête est limitée aux objets de l'utilisateur.
-
-    Un objet d'un autre utilisateur est donc introuvable (404), quelle que soit l'opération.
-    """
-
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
-    model = None
-    restricted_message = ""
-
-    def get_queryset(self):
-        # Génération du schéma OpenAPI : il n'y a pas d'utilisateur réel.
-        if getattr(self, "swagger_fake_view", False):
-            return self.model.objects.none()
-        return self.get_user_queryset(self.request.user)
-
-    def get_user_queryset(self, user):
-        raise NotImplementedError
-
-    def destroy(self, request, *args, **kwargs):
-        try:
-            return super().destroy(request, *args, **kwargs)
-        except RestrictedError:
-            return Response({"detail": self.restricted_message}, status=status.HTTP_409_CONFLICT)
 
 
 @extend_schema_view(destroy=extend_schema(responses={204: None, 409: CONFLICT_RESPONSE}))
@@ -121,22 +88,12 @@ class TransferViewSet(UserOwnedViewSet):
         return Transfer.objects.filter(user=user).select_related("from_account", "to_account")
 
 
-REFERENCE_DATE_PARAMETER = OpenApiParameter(
-    "date",
-    type=OpenApiTypes.DATE,
-    description=(
-        "Date de référence (YYYY-MM-DD) : la consommation est calculée pour la période qui "
-        "la contient. Par défaut, aujourd'hui dans le fuseau de l'utilisateur."
-    ),
-)
-
-
 @extend_schema_view(
     list=extend_schema(parameters=[REFERENCE_DATE_PARAMETER]),
     retrieve=extend_schema(parameters=[REFERENCE_DATE_PARAMETER]),
 )
 @extend_schema(tags=["finance"])
-class BudgetViewSet(UserOwnedViewSet):
+class BudgetViewSet(ReferenceDateMixin, UserOwnedViewSet):
     model = Budget
     serializer_class = BudgetSerializer
     filterset_class = BudgetFilter
@@ -145,20 +102,6 @@ class BudgetViewSet(UserOwnedViewSet):
 
     def get_user_queryset(self, user):
         return Budget.objects.filter(user=user).select_related("category")
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        if getattr(self, "swagger_fake_view", False) or not self.request:
-            return context
-        raw = self.request.query_params.get("date")
-        if not raw:
-            context["reference_date"] = user_today(self.request.user)
-            return context
-        try:
-            context["reference_date"] = serializers.DateField().run_validation(raw)
-        except serializers.ValidationError as exc:
-            raise serializers.ValidationError({"date": exc.detail}) from exc
-        return context
 
 
 @extend_schema(tags=["finance"])

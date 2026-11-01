@@ -193,3 +193,46 @@ Les revenus et les transferts ne sont jamais comptés. Une seule requête SQL es
 **Pas de double comptage :** un objectif ne stocke aucun versement. L'argent n'existe qu'une fois, dans le solde d'un compte, et un compte ne sert qu'à un seul objectif. Pour épargner, on fait un **transfert** vers le compte de l'objectif : ce n'est ni une dépense ni un revenu.
 
 **Suppression :** une catégorie utilisée par un budget, ou un compte rattaché à un objectif, ne peut pas être supprimé (409). Supprimer un budget ou un objectif ne touche ni les transactions ni le compte.
+
+### 5.5 Module sportif (phase 9)
+
+Application `workouts`, migrations `0001_initial` et `0002_default_activities_for_existing_users`. Tous les modèles appartiennent à un utilisateur (`CASCADE`).
+
+**`workouts.ActivityType`** : activité, propre à chaque utilisateur et extensible
+
+| Champ | Règles |
+|---|---|
+| `name` | unique par utilisateur (contrainte en base), 60 caractères |
+| `tracks_distance` | la distance a un sens pour cette activité (course, vélo…) |
+| `is_active` | une activité utilisée est désactivée plutôt que supprimée |
+
+Chaque nouvel utilisateur reçoit 10 activités (`workouts/defaults.py`), par un signal `post_save`. Les utilisateurs existants les reçoivent par la migration `0002`.
+
+**`workouts.Workout`** : séance saisie manuellement
+
+| Champ | Règles |
+|---|---|
+| `activity` | du même utilisateur ; `RESTRICT` |
+| `started_at` | date et heure, stockées en UTC ; pas dans le futur (tolérance de 5 min, vérifiée par l'API) |
+| `duration_seconds` | entier de 1 à 86 400 (24 h), contrainte en base |
+| `intensity` | entier de 1 à 10, contrainte en base |
+| `distance_km` | facultative, Decimal(7,2), strictement positive (contrainte en base) |
+| `estimated_calories` | facultatif, entier ≥ 0 ; **toujours une estimation**, jamais une mesure |
+| `notes` | facultatives, 1000 caractères |
+
+**`workouts.WorkoutGoal`** : objectif sportif récurrent
+
+| Champ | Règles |
+|---|---|
+| `metric` | `sessions` (nombre de séances), `duration` (secondes) ou `distance` (km) |
+| `period` | `weekly` (du lundi au dimanche) ou `monthly` |
+| `activity` | facultative : vide = toutes les activités ; `RESTRICT` |
+| `target_value` | Decimal(10,2) > 0 ; nombre entier pour `sessions` et `duration` |
+
+Un seul objectif par (mesure, période, activité). La contrainte est en base pour une activité donnée ; pour « toutes activités » (`NULL`), elle est vérifiée par le serializer, comme pour les budgets.
+
+**Calculs** (`workouts/selectors.py`), jamais stockés :
+
+- Les périodes sont calculées par `core.periods.period_bounds`, la même fonction que pour les budgets, dans le fuseau de l'utilisateur. Une séance compte pour le jour **local** où elle a commencé (`core.periods.local_day_range`).
+- **Statistiques** : nombre de séances, durée totale, durée moyenne (arrondie à la seconde), distance totale, et détail par activité. Une période sans séance renvoie des zéros.
+- **Progression** d'un objectif : la valeur atteinte sur la période, un pourcentage borné à 100, et `is_reached`. Une requête SQL par type de période présent.

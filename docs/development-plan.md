@@ -20,8 +20,8 @@ Chaque phase se termine par : tests exécutés et réussis, documentation à jou
 | 6 | Connexion du frontend à l'API | ✅ terminée (30/10/2026) : TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours d'authentification et nouveau design validés par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
 | 7 | Interfaces financières | ✅ terminée (01/11/2026) : liste des transactions (recherche, filtres, tri, pagination), création, modification, suppression, gestion des catégories ; TypeScript, ESLint, Prettier OK ; types vérifiés contre le schéma OpenAPI de production ; parcours validé par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
 | 8a | Budgets et objectifs d'épargne : backend | ✅ terminée (01/11/2026) : modèles, migration `0003`, API, 52 nouveaux tests (260 réussis, 1 ignoré en local) ; schéma OpenAPI valide ; CI MariaDB, déploiement et vérification Swagger confirmés par l'utilisateur (sorties non transmises) |
-| 8b | Comptes, transferts, budgets et objectifs : écrans mobiles | 🔄 développée : TypeScript, ESLint, Prettier OK ; tests Jest écrits, non exécutés (phase 13) ; essai sur téléphone à faire |
-| 9 | Module sportif backend | à faire |
+| 8b | Comptes, transferts, budgets et objectifs : écrans mobiles | ✅ terminée (01/11/2026) : TypeScript, ESLint, Prettier OK ; parcours validé par l'utilisateur sur Android (Expo Go, API de production) ; tests Jest écrits, non exécutés (phase 13) |
+| 9 | Module sportif backend | 🔄 développée : application `workouts` (activités, séances, objectifs, statistiques), migrations `0001` et `0002`, 55 nouveaux tests (315 réussis, 1 ignoré, en local sur SQLite) ; schéma OpenAPI valide ; CI MariaDB et déploiement o2switch à faire par l'utilisateur |
 | 10 | Interfaces sportives | à faire |
 | 11 | Mesures corporelles et statistiques | à faire |
 | 12 | Tableau de bord global | à faire |

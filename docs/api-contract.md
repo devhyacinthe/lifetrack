@@ -191,6 +191,72 @@ Tous les endpoints exigent un jeton. Ils sont **limités aux données de l'utili
 - Recherche : `search` (nom). Tri : `ordering=name|deadline|target_amount|created_at`.
 - Un compte rattaché à un objectif ne peut pas être supprimé (**409**) ; supprimer l'objectif ne touche pas au compte.
 
+## 3 quater. Sport (phase 9)
+
+Mêmes règles que pour les finances : jeton obligatoire, objets d'un autre utilisateur introuvables (404), identifiant étranger dans un corps de requête refusé (400 `"Objet introuvable."`), pas de `PUT`.
+
+### Activités : `/api/v1/workouts/activities/`
+
+```json
+{ "id": "uuid", "name": "Course à pied", "tracks_distance": true, "is_active": true, "created_at": "…", "updated_at": "…" }
+```
+
+- 10 activités sont créées à l'inscription. Le nom est unique par utilisateur.
+- Filtres : `is_active`, `tracks_distance`. Recherche : `search`. Tri : `ordering=name|created_at`.
+- `DELETE` d'une activité utilisée par une séance ou un objectif : **409**. Il faut la désactiver (`PATCH {"is_active": false}`).
+
+### Séances : `/api/v1/workouts/sessions/`
+
+```json
+{
+  "id": "uuid", "activity": "uuid", "activity_name": "Course à pied",
+  "started_at": "2026-10-15T07:00:00Z", "duration_seconds": 2700, "intensity": 7,
+  "distance_km": "8.50", "estimated_calories": 520, "notes": "Bord de mer",
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- Obligatoires : `activity`, `started_at` (ISO 8601 avec fuseau, pas dans le futur), `duration_seconds` (1 à 86 400), `intensity` (1 à 10).
+- Facultatifs : `distance_km` (≥ 0,01, 2 décimales), `estimated_calories` (0 à 20 000 ; **estimation**, jamais une mesure exacte), `notes` (1000 caractères).
+- Une activité désactivée est refusée pour une **nouvelle** séance. Les séances existantes restent modifiables.
+- Filtres : `activity`, `date_after` et `date_before` (`YYYY-MM-DD`, bornes incluses, **dans le fuseau de l'utilisateur**), `intensity_min`, `intensity_max`.
+- Recherche : `search` (notes). Tri : `ordering=started_at|duration_seconds|intensity|distance_km` (par défaut `-started_at`).
+
+### Objectifs sportifs : `/api/v1/workouts/goals/`
+
+```json
+{
+  "id": "uuid", "metric": "sessions", "period": "weekly",
+  "activity": null, "activity_name": null, "target_value": "3.00",
+  "period_start": "2026-10-12", "period_end": "2026-10-18",
+  "current_value": "1.00", "percent": "33.3", "is_reached": false,
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+- `metric` : `sessions` (nombre de séances), `duration` (secondes), `distance` (km). `period` : `weekly` ou `monthly`. `activity` : facultative (`null` = toutes).
+- `target_value` > 0, et nombre entier pour `sessions` et `duration`.
+- Un seul objectif par mesure, période et activité : sinon 400 sur `metric`.
+- `period_start`, `period_end`, `current_value`, `percent` (0 à 100) et `is_reached` : **lecture seule, calculés** pour la période contenant la date de référence (`?date=YYYY-MM-DD`, aujourd'hui par défaut).
+- Filtres : `metric`, `period`, `activity`. Tri : `ordering=period|metric|created_at`.
+
+### Statistiques : `GET /api/v1/workouts/stats/?period=weekly&date=2026-10-15`
+
+```json
+{
+  "period": "weekly", "period_start": "2026-10-12", "period_end": "2026-10-18",
+  "sessions_count": 3, "total_duration_seconds": 7801, "average_duration_seconds": 2600,
+  "total_distance_km": "12.20",
+  "by_activity": [
+    { "activity": "uuid", "activity_name": "Course à pied", "sessions_count": 2,
+      "total_duration_seconds": 4200, "total_distance_km": "12.20" }
+  ]
+}
+```
+
+- `period` : `weekly` (par défaut) ou `monthly`. `date` : date de référence (aujourd'hui par défaut, dans le fuseau de l'utilisateur).
+- Une période sans séance renvoie des zéros et une liste `by_activity` vide.
+
 ## 4. Tester uniquement le backend avec Swagger et OpenAPI
 
 Cette procédure permet de valider chaque phase backend **sans l'application mobile**.

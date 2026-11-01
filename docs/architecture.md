@@ -76,7 +76,7 @@ lifetrack/
 │   │   ├── urls.py                # /api/v1/, /api/schema/, /api/docs/
 │   │   └── wsgi.py
 │   └── apps/                      # chaque app est créée à sa phase
-│       ├── core/                  # éléments transverses (santé, pagination, permissions)
+│       ├── core/                  # éléments transverses : santé, pagination, api.py (isolation par utilisateur), periods.py (périodes et fuseaux)
 │       ├── users/                 # phase 2
 │       ├── finance/               # phases 3-4, 8
 │       ├── workouts/              # phase 9

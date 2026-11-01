@@ -1,7 +1,8 @@
 from decimal import Decimal
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+
+from apps.core.api import ModelCleanMixin, OwnedPrimaryKeyRelatedField
 
 from . import services
 from .models import (
@@ -29,25 +30,6 @@ def amount_field(**kwargs):
     return serializers.DecimalField(
         max_digits=AMOUNT_MAX_DIGITS, decimal_places=AMOUNT_DECIMAL_PLACES, **kwargs
     )
-
-
-class OwnedPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
-    """Clé étrangère limitée aux objets de l'utilisateur connecté (sinon « introuvable »)."""
-
-    default_error_messages = {"does_not_exist": "Objet introuvable."}
-
-    def get_queryset(self):
-        return super().get_queryset().filter(user=self.context["request"].user)
-
-
-class ModelCleanMixin:
-    """Applique Model.clean() et convertit ses erreurs au format de l'API."""
-
-    def run_model_clean(self, instance):
-        try:
-            instance.clean()
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError(exc.message_dict) from exc
 
 
 # --- Comptes ---------------------------------------------------------------------

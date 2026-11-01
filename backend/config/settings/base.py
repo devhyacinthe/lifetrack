@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.users",
     "apps.finance",
+    "apps.workouts",
 ]
 
 AUTH_USER_MODEL = "users.User"
@@ -176,6 +177,9 @@ SPECTACULAR_SETTINGS = {
         "TransactionTypeEnum": "apps.finance.models.TransactionType",
         "AccountTypeEnum": "apps.finance.models.AccountType",
         "PaymentMethodEnum": "apps.finance.models.PaymentMethod",
+        "BudgetPeriodEnum": "apps.finance.models.BudgetPeriod",
+        "WorkoutGoalMetricEnum": "apps.workouts.models.GoalMetric",
+        "WorkoutGoalPeriodEnum": "apps.workouts.models.GoalPeriod",
     },
 }
 

@@ -1,20 +1,18 @@
 """Lectures et calculs financiers (sans écriture)."""
 
-import calendar
 import datetime
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from zoneinfo import ZoneInfo
 
 from django.db.models import DecimalField, F, OuterRef, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
-from django.utils import timezone
+
+from apps.core.periods import period_bounds, user_today  # noqa: F401  (réexportés)
 
 from .models import (
     AMOUNT_DECIMAL_PLACES,
     AMOUNT_MAX_DIGITS,
     Account,
-    BudgetPeriod,
     SavingsGoal,
     Transaction,
     TransactionType,
@@ -96,24 +94,6 @@ def account_has_operations(account):
 # --- Budgets ------------------------------------------------------------------------
 
 
-def period_bounds(period, reference_date):
-    """
-    Bornes incluses de la période contenant reference_date.
-
-    Semaine : du lundi au dimanche (ISO 8601). Mois et année : calendaires.
-    """
-    if period == BudgetPeriod.WEEKLY:
-        start = reference_date - datetime.timedelta(days=reference_date.weekday())
-        return start, start + datetime.timedelta(days=6)
-    if period == BudgetPeriod.MONTHLY:
-        start = reference_date.replace(day=1)
-        last_day = calendar.monthrange(reference_date.year, reference_date.month)[1]
-        return start, reference_date.replace(day=last_day)
-    if period == BudgetPeriod.YEARLY:
-        return datetime.date(reference_date.year, 1, 1), datetime.date(reference_date.year, 12, 31)
-    raise ValueError(f"Période inconnue : {period}")
-
-
 @dataclass(frozen=True)
 class BudgetUsage:
     period_start: datetime.date
@@ -189,8 +169,3 @@ def goal_progress(goal):
     remaining = max(goal.target_amount - current, ZERO)
     percent = min(max(_percent(current, goal.target_amount), ZERO), Decimal("100.0"))
     return remaining, percent
-
-
-def user_today(user):
-    """Date du jour dans le fuseau horaire de l'utilisateur."""
-    return timezone.localdate(timezone=ZoneInfo(user.timezone))
